@@ -584,15 +584,15 @@ class Beam:
             # Installing QR first makes a cancelled package transaction observable.
             self.require(["omarchy-pkg-add", "qrencode"], "The QR helper did not install.", "install", 1800, True)
             if not self.system.have("sunshine"):
-                rc, _ = self.run(["omarchy-install-service-sunshine"], timeout=1800, interactive=True)
-                if rc:
-                    units = self.units()
-                    known_rename = self.system.have("sunshine") and any(u[0] == UNITS[0] for u in units) and not any(u[0] == UNITS[1] for u in units)
-                    if not known_rename:
-                        raise Failure("Sunshine installation stopped.", f"The installer exited with code {rc}. Check its terminal message and retry.", "install")
-                    self.progress(action, "Finishing setup after the packaged service-name mismatch.")
+                # Beam owns one desktop-session launcher. The stock installer
+                # enables a service name the package no longer ships, then
+                # also installs a second autostart path. Install the package
+                # directly and reuse only its firewall/web-app functions below.
+                self.require(["omarchy-pkg-add", "sunshine"], "Sunshine did not install.", "install", 1800, True)
+                if not self.system.have("sunshine"):
+                    raise Failure("Sunshine is still missing after installation.", "Check the package transaction and retry Install.", "install")
             self.repair()
-            return result(True, action, "This computer's installation is complete.", "Create your Sunshine login, then pair Moonlight on the iPad.")
+            return result(True, action, "This computer's installation is complete.", "Choose your iPad screen size in Beam, create your Sunshine login, then pair Moonlight.")
         if action == "repair":
             self.progress(action, "Checking startup and finishing the Omarchy setup.")
             self.repair()
@@ -789,6 +789,10 @@ def main(argv=None):
         elif action == "prepare-display":
             beam.display.virtual.prepare()
             data = result(True, action, "The iPad capture display is ready.")
+        elif action == "select-ipad":
+            fixed = beam.display.select_ipad(args[0] if args else "")
+            data = result(True, action, f"iPad screen saved: {fixed[0]}×{fixed[1]}.",
+                          f"Set Moonlight Resolution to Custom {fixed[0]}×{fixed[1]} at 60 FPS. Quit the old session and relaunch Beam Desktop.")
         elif action == "set-resolution":
             fixed = beam.display.set_resolution(args[0] if args else "", args[1] if len(args) > 1 else 1)
             message = f"Desktop pinned to {fixed[0]}×{fixed[1]} at {fixed[2]} FPS and {beam.display.fixed_scale() * 100:.3g}% scale." if fixed else "Desktop sizing follows Moonlight again."

@@ -137,10 +137,12 @@ Ui.BarWidget {
             root.toggle();
         }
         function expert(): void {
+            panel.sizingMode = false;
             panel.expertMode = true;
             root.open();
         }
         function guided(): void {
+            panel.sizingMode = false;
             panel.expertMode = false;
             root.open();
         }
@@ -151,6 +153,10 @@ Ui.BarWidget {
         }
         function geometry(): string {
             return JSON.stringify(panel.geometry());
+        }
+        function ipad(family: string): void {
+            root.open();
+            panel.showSizing(family);
         }
     }
 }

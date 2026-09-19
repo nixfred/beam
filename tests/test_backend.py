@@ -142,6 +142,35 @@ class BackendTest(unittest.TestCase):
                 self.beam.repair()
             stop.assert_not_called()
 
+    def test_install_avoids_broken_stock_service_enable_and_finishes_setup(self):
+        installed = set()
+        self.system.have = lambda name: name in installed
+        def run(args, **kwargs):
+            self.system.commands.append(args)
+            if args[0] == "omarchy-pkg-add":
+                installed.add(args[1])
+            return 0, ""
+        self.system.run = run
+        with patch.object(self.beam, "progress"), patch.object(self.beam, "repair") as repair:
+            self.assertTrue(self.beam.perform("install")["ok"])
+            repair.assert_called_once()
+        self.assertEqual(self.system.commands, [["omarchy-pkg-add", "qrencode"], ["omarchy-pkg-add", "sunshine"]])
+
+    def test_failed_package_install_is_not_mistaken_for_service_mismatch(self):
+        self.system.have = lambda name: False
+        self.system.run = lambda args, **kwargs: (1 if args[-1] == "sunshine" else 0, "")
+        with patch.object(self.beam, "progress"), patch.object(self.beam, "repair") as repair:
+            with self.assertRaises(beam.Failure):
+                self.beam.perform("install")
+            repair.assert_not_called()
+
+    def test_missing_package_after_success_is_reported_before_repair(self):
+        self.system.have = lambda name: False
+        with patch.object(self.beam, "progress"), patch.object(self.beam, "repair") as repair:
+            with self.assertRaises(beam.Failure):
+                self.beam.perform("install")
+            repair.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -167,3 +167,38 @@ Beam Desktop again. Sunshine does not rerun preparation hooks for a resume.
 
 These references informed the implementation; the tests and local VM checks
 establish what has actually been exercised here.
+
+## Model picker and installer follow-up (2026-09-19)
+
+- Fresh setup now installs the Sunshine package directly and reuses only the
+  stock firewall/admin-web-app functions, avoiding the missing `sunshine.service`
+  enable step. In the isolated acceptance VM, removal completed, the package was
+  absent, and the production installer then completed through a terminal PTY.
+  Its transcript contains no missing-unit error or mismatch-recovery message.
+  Readback: one Sunshine process, packaged unit disabled, managed startup and
+  browser routing ready, firewall ready, native display ready, `setupReady: true`,
+  and `adminConfigured: false` awaiting the human's new login.
+- **77 checks pass:** 70 Python tests and seven service-state tests. New coverage
+  checks failed package transactions, a missing package after an apparent success,
+  all 17 iPad presets, exact native capture and ultrawide restoration, persistence,
+  preserving same-size custom scaling, invalid model IDs, pre-install rejection,
+  and switching back to Full. These display tests use synthetic client requests.
+- The offline catalog covers all 45 models in Apple's identification list as
+  checked on 19 September 2026. Every model has its own technical-specification
+  source in [the resolution guide](../ipad-resolutions.md) and `lib/ipads.json`.
+  Ten resolutions are grouped into 17 family/model choices. Native pixel counts
+  are verified specifications, not a claim that every legacy iPad runs Moonlight.
+- All four family views fit at **1024x768 logical pixels**, including the six-row
+  Pro list. Native capture used **2048x1536 at scale 2**. Geometry reported zero
+  clipped text. Saved-size and error reports were injected as VM presentation
+  fixtures and also fit; both were visually inspected. The native light-theme
+  [picker capture](../assets/ipad-picker.png) is public and contains no private
+  account or network data. A dormant second display can produce a stale capture;
+  final visual verification used the actual active iPad output.
+- The host's dark-theme picker and guided steps 3, 5 and 6 fit with its enlarged
+  fonts at **2049x1536 logical pixels**. The shell's component cache required one
+  shell refresh to load the new UI. Sunshine was not restarted. Afterward, the
+  live host still reported one process and **2732x2048, Moonlight matches**, at
+  the user's existing **4/3 scale**.
+- Local wallpaper playback was disabled separately at the user's request. The
+  installer does not globally change another user's wallpaper preference.

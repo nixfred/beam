@@ -51,7 +51,7 @@ Full list with evidence is PRD.md section 4. The two that trip people up:
 - **The stock Sunshine installer is broken.** `omarchy-install-service-sunshine` runs under
   `set -e` and enables `sunshine.service`, but the package ships
   `app-dev.lizardbyte.app.Sunshine.service`. It dies before the firewall, web app and
-  autostart steps. Beam repairs around it; a separate upstream PR fixes it properly.
+  autostart steps. Beam installs the package directly and reuses the stock firewall/web-app functions, avoiding the broken service-enable step. Repair also fixes older interrupted installs.
 - **A render node does not mean hardware encoding.** virtio-gpu shows `/dev/dri/renderD128`
   and cannot encode a frame. The only honest source is Sunshine's own
   `Found H.264 encoder:` log line. Never infer it from a DRM device.

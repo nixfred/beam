@@ -1,0 +1,339 @@
+{
+  "checked": "2026-09-19",
+  "source": "https://support.apple.com/en-us/108043",
+  "profiles": [
+    {
+      "id": "ipad-2360",
+      "family": "iPad",
+      "label": "A16 / 10th generation",
+      "width": 2360,
+      "height": 1640,
+      "models": [
+        {
+          "name": "iPad (A16)",
+          "source": "https://support.apple.com/122240"
+        },
+        {
+          "name": "iPad (10th generation)",
+          "source": "https://support.apple.com/kb/SP884"
+        }
+      ]
+    },
+    {
+      "id": "ipad-2160",
+      "family": "iPad",
+      "label": "7th-9th generation",
+      "width": 2160,
+      "height": 1620,
+      "models": [
+        {
+          "name": "iPad (9th generation)",
+          "source": "https://support.apple.com/kb/SP849"
+        },
+        {
+          "name": "iPad (8th generation)",
+          "source": "https://support.apple.com/kb/SP822"
+        },
+        {
+          "name": "iPad (7th generation)",
+          "source": "https://support.apple.com/kb/SP807"
+        }
+      ]
+    },
+    {
+      "id": "ipad-2048",
+      "family": "iPad",
+      "label": "3rd-6th generation",
+      "width": 2048,
+      "height": 1536,
+      "models": [
+        {
+          "name": "iPad (6th generation)",
+          "source": "https://support.apple.com/kb/SP774"
+        },
+        {
+          "name": "iPad (5th generation)",
+          "source": "https://support.apple.com/kb/SP751"
+        },
+        {
+          "name": "iPad (4th generation)",
+          "source": "https://support.apple.com/kb/SP662"
+        },
+        {
+          "name": "iPad (3rd generation)",
+          "source": "https://support.apple.com/kb/SP647"
+        }
+      ]
+    },
+    {
+      "id": "ipad-1024",
+      "family": "iPad",
+      "label": "Original / iPad 2",
+      "width": 1024,
+      "height": 768,
+      "models": [
+        {
+          "name": "iPad 2",
+          "source": "https://support.apple.com/kb/sp622"
+        },
+        {
+          "name": "iPad",
+          "source": "https://support.apple.com/kb/SP580"
+        }
+      ]
+    },
+    {
+      "id": "air-2732",
+      "family": "Air",
+      "label": "13-inch (M2 / M3 / M4)",
+      "width": 2732,
+      "height": 2048,
+      "models": [
+        {
+          "name": "iPad Air 13-inch (M4)",
+          "source": "https://support.apple.com/126472"
+        },
+        {
+          "name": "iPad Air 13-inch (M3)",
+          "source": "https://support.apple.com/122242"
+        },
+        {
+          "name": "iPad Air 13-inch (M2)",
+          "source": "https://support.apple.com/119893"
+        }
+      ]
+    },
+    {
+      "id": "air-2360",
+      "family": "Air",
+      "label": "11-inch M2-M4 / 4th-5th gen",
+      "width": 2360,
+      "height": 1640,
+      "models": [
+        {
+          "name": "iPad Air 11-inch (M4)",
+          "source": "https://support.apple.com/126471"
+        },
+        {
+          "name": "iPad Air 11-inch (M3)",
+          "source": "https://support.apple.com/122241"
+        },
+        {
+          "name": "iPad Air 11-inch (M2)",
+          "source": "https://support.apple.com/119894"
+        },
+        {
+          "name": "iPad Air (5th generation)",
+          "source": "https://support.apple.com/kb/SP866"
+        },
+        {
+          "name": "iPad Air (4th generation)",
+          "source": "https://support.apple.com/kb/SP828"
+        }
+      ]
+    },
+    {
+      "id": "air-2224",
+      "family": "Air",
+      "label": "3rd generation (10.5-inch)",
+      "width": 2224,
+      "height": 1668,
+      "models": [
+        {
+          "name": "iPad Air (3rd generation)",
+          "source": "https://support.apple.com/kb/SP787"
+        }
+      ]
+    },
+    {
+      "id": "air-2048",
+      "family": "Air",
+      "label": "Original / Air 2",
+      "width": 2048,
+      "height": 1536,
+      "models": [
+        {
+          "name": "iPad Air 2",
+          "source": "https://support.apple.com/kb/SP708"
+        },
+        {
+          "name": "iPad Air",
+          "source": "https://support.apple.com/kb/SP692"
+        }
+      ]
+    },
+    {
+      "id": "mini-2266",
+      "family": "mini",
+      "label": "A17 Pro / 6th generation",
+      "width": 2266,
+      "height": 1488,
+      "models": [
+        {
+          "name": "iPad mini (A17 Pro)",
+          "source": "https://support.apple.com/121456"
+        },
+        {
+          "name": "iPad mini (6th generation)",
+          "source": "https://support.apple.com/kb/SP850"
+        }
+      ]
+    },
+    {
+      "id": "mini-2048",
+      "family": "mini",
+      "label": "2nd-5th generation",
+      "width": 2048,
+      "height": 1536,
+      "models": [
+        {
+          "name": "iPad mini (5th generation)",
+          "source": "https://support.apple.com/kb/SP788"
+        },
+        {
+          "name": "iPad mini 4",
+          "source": "https://support.apple.com/kb/SP725"
+        },
+        {
+          "name": "iPad mini 3",
+          "source": "https://support.apple.com/kb/SP709"
+        },
+        {
+          "name": "iPad mini 2",
+          "source": "https://support.apple.com/kb/SP693"
+        }
+      ]
+    },
+    {
+      "id": "mini-1024",
+      "family": "mini",
+      "label": "Original",
+      "width": 1024,
+      "height": 768,
+      "models": [
+        {
+          "name": "iPad mini",
+          "source": "https://support.apple.com/kb/SP661"
+        }
+      ]
+    },
+    {
+      "id": "pro-2752",
+      "family": "Pro",
+      "label": "13-inch (M4 / M5)",
+      "width": 2752,
+      "height": 2064,
+      "models": [
+        {
+          "name": "iPad Pro 13-inch (M5)",
+          "source": "https://support.apple.com/125407"
+        },
+        {
+          "name": "iPad Pro 13-inch (M4)",
+          "source": "https://support.apple.com/119891"
+        }
+      ]
+    },
+    {
+      "id": "pro-2732",
+      "family": "Pro",
+      "label": "12.9-inch (1st-6th gen)",
+      "width": 2732,
+      "height": 2048,
+      "models": [
+        {
+          "name": "iPad Pro 12.9-inch (6th generation)",
+          "source": "https://support.apple.com/kb/SP883"
+        },
+        {
+          "name": "iPad Pro 12.9-inch (5th generation)",
+          "source": "https://support.apple.com/kb/SP844"
+        },
+        {
+          "name": "iPad Pro 12.9-inch (4th generation)",
+          "source": "https://support.apple.com/kb/SP815"
+        },
+        {
+          "name": "iPad Pro 12.9-inch (3rd generation)",
+          "source": "https://support.apple.com/kb/SP785"
+        },
+        {
+          "name": "iPad Pro 12.9-inch (2nd generation)",
+          "source": "https://support.apple.com/kb/SP761"
+        },
+        {
+          "name": "iPad Pro (12.9-inch)",
+          "source": "https://support.apple.com/kb/SP723"
+        }
+      ]
+    },
+    {
+      "id": "pro-2420",
+      "family": "Pro",
+      "label": "11-inch (M4 / M5)",
+      "width": 2420,
+      "height": 1668,
+      "models": [
+        {
+          "name": "iPad Pro 11-inch (M5)",
+          "source": "https://support.apple.com/125406"
+        },
+        {
+          "name": "iPad Pro 11-inch (M4)",
+          "source": "https://support.apple.com/119892"
+        }
+      ]
+    },
+    {
+      "id": "pro-2388",
+      "family": "Pro",
+      "label": "11-inch (1st-4th gen)",
+      "width": 2388,
+      "height": 1668,
+      "models": [
+        {
+          "name": "iPad Pro 11-inch (4th generation)",
+          "source": "https://support.apple.com/kb/SP882"
+        },
+        {
+          "name": "iPad Pro 11-inch (3rd generation)",
+          "source": "https://support.apple.com/kb/SP843"
+        },
+        {
+          "name": "iPad Pro 11-inch (2nd generation)",
+          "source": "https://support.apple.com/kb/SP814"
+        },
+        {
+          "name": "iPad Pro 11-inch",
+          "source": "https://support.apple.com/kb/SP784"
+        }
+      ]
+    },
+    {
+      "id": "pro-2224",
+      "family": "Pro",
+      "label": "10.5-inch",
+      "width": 2224,
+      "height": 1668,
+      "models": [
+        {
+          "name": "iPad Pro (10.5-inch)",
+          "source": "https://support.apple.com/kb/SP762"
+        }
+      ]
+    },
+    {
+      "id": "pro-2048",
+      "family": "Pro",
+      "label": "9.7-inch",
+      "width": 2048,
+      "height": 1536,
+      "models": [
+        {
+          "name": "iPad Pro (9.7-inch)",
+          "source": "https://support.apple.com/kb/SP739"
+        }
+      ]
+    }
+  ]
+}

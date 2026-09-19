@@ -152,12 +152,13 @@ advertised, documented to users, or reachable except through the panel.
 |---|---|
 | `status` | prints the JSON below, always exit 0 |
 | `doctor` | the same facts, human readable, with what to do about each failure |
-| `install` | runs Omarchy's installer, then `repair` to finish what it skipped |
+| `install` | installs Sunshine and QR packages, then applies Beam’s repair/setup steps without enabling the broken service name |
 | `repair` | fixes any of the known broken states in section 8 |
 | `ports` | reopens the firewall ports using the stock installer's own function |
 | `admin` | opens the Sunshine admin page |
 | `pin` | opens the admin page's PIN tab |
 | `set-resolution WIDTHxHEIGHT\|auto [scale]` | pins a validated picture size, or resumes client-sized selection; Moonlight must request matching dimensions |
+| `select-ipad ID` | saves a catalog model’s native size; the user enters matching custom dimensions in Moonlight |
 | `prepare-display` | creates the named virtual capture display before Sunshine starts; native pixels and readable scaling are applied by the stream hooks |
 | `qr <text>` | writes a QR png, prints its path, caches by content |
 | `hold on\|off\|auto` | holds the session awake, or gives idling back |
@@ -262,7 +263,7 @@ counts as streaming only if it is the CONNECTED one. Tail the log; this runs eve
 **Reusing the stock installer's functions.** Find the line number of the literal line
 `echo "Installing Sunshine..."` in `/usr/bin/omarchy-install-service-sunshine`, write
 everything above it to a temp file, append a call to the function you want
-(`open_ufw_ports`, `install_admin_webapp`, `enable_hyprland_autostart`), and run it. The
+(`open_ufw_ports`, `install_admin_webapp`), and run it. Beam manages its own single autostart launcher. The
 firewall one needs root: run it as **one** root call, because the script's inner `sudo ufw`
 lines then need no further authentication, and because sudo caching does not survive between
 invocations without a TTY (section 4).
@@ -399,8 +400,8 @@ Beam 1.0 ships when all of these pass **on a machine where Sunshine was never in
 4. Enabling the plugin shows a grey dot labelled `set up`, and fires exactly one notification.
    Enabling it a second time fires none.
 5. Clicking the dot opens the wizard on step 2, not step 1.
-6. Step 2's button opens a visible terminal. The install completes **despite** the stock
-   installer's unit bug, and all five checks go green without the user typing another command.
+6. Step 2's button opens a visible terminal. The install avoids the stock
+   installer's broken unit-enable step, and all five checks go green without the user typing another command.
 7. After install, `processes` is exactly 1. Not 0, not 2.
 8. The encoder card quotes the string from Sunshine's log, and the recommendation matches it.
 9. Both QR codes render, and both are readable by a phone camera **in a dark theme and a light
@@ -473,3 +474,25 @@ must produce whole logical pixels; 2732x2048 at 4/3 gives 2049x1536. Preserve
 that preference across sessions and allow compositor float rounding on readback. Do not enlarge their text with the
 automatic native-resolution scaling policy. Moonlight must request matching
 custom dimensions, chosen for the actual iPad aspect ratio.
+
+
+## Model-based setup follow-up (2026-09-19)
+
+Fresh Beam installs use `omarchy-pkg-add sunshine` and then Beam’s repair/setup
+steps. Do not run the stock installer’s broken service-enable step. Preserve its
+firewall and admin-web-app functions; Beam owns the single desktop launcher. A
+failed package transaction must stop setup and must not be reported as the known
+service-name mismatch. This supersedes the old install-and-recover sequence.
+
+The CLI owns an offline Apple-sourced catalog of all 45 listed iPad models,
+grouped by family and identical pixels. `select-ipad ID` saves exact landscape
+dimensions for the next launch, preserving a custom scale when the dimensions
+already match. The UI exposes readable family/model choices without scrolling,
+including before setup is complete, but saving requires native sizing to be
+installed. Never claim to identify the iPad automatically from stream dimensions.
+
+Setup shows Settings → General → About → Model Name and requires the user to
+copy the chosen dimensions into Moonlight Custom at 60 FPS. Full remains an
+explicit fallback for unlisted models. A mismatched client request remains
+visible after disconnect. Text scaling is separate from video pixels. A static
+wallpaper is an optional recommendation, not an installer-wide desktop change.

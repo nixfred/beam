@@ -53,6 +53,9 @@ Item {
     readonly property bool resolutionActive: snapshot.resolutionActive === true
     readonly property string moonlightSetting: String(snapshot.moonlightSetting || "Full")
     readonly property bool resolutionReady: snapshot.resolutionReady === true
+    readonly property bool nativeResolution: snapshot.nativeResolution === true
+    readonly property var ipadProfiles: snapshot.ipadProfiles || []
+    readonly property string ipadProfile: String(snapshot.ipadProfile || "")
     readonly property int recommendedBitrate: Number(snapshot.recommendedBitrate || 20)
     readonly property int pairedClients: Number(snapshot.pairedClients || 0)
     readonly property bool streaming: statusFresh && snapshot.streaming === true && running && processes > 0
@@ -247,6 +250,8 @@ Item {
     function moonlight() { run(["moonlight"]) }
     function copyAddress() { run(["copy-address"]) }
     function restoreDisplay() { run(["restore-display"]) }
+    function selectIpad(identifier) { run(["select-ipad", identifier]) }
+    function useMoonlightFull() { run(["set-resolution", "auto"]) }
     function retry() {
         var action = actionReport.retryAction
         if (["install", "repair", "ports", "undo"].indexOf(action) >= 0) terminal(action)

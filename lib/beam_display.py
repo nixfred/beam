@@ -13,6 +13,7 @@ import signal
 import tempfile
 import time
 import uuid
+from beam_ipads import profile, profiles
 
 APP_NAME = "Beam Desktop"
 MODE = re.compile(r"^(\d+)x(\d+)@([\d.]+)(?:Hz)?$")
@@ -119,7 +120,19 @@ class DisplayFit:
         size = self.fixed_size()
         return self.validate_scale(size, load(self.preferences).get("scale", 1)) if size else 1
 
-    def set_resolution(self, value, scale=1):
+    def select_ipad(self, identifier):
+        selected = profile(identifier)
+        if not selected:
+            raise DisplayError("Choose an iPad model from the screen-size list.", "The previous setting was kept.")
+        if not self.virtual.enabled():
+            raise DisplayError("Set up this computer before choosing an iPad screen.")
+        from beam_virtual import readable_scale
+        size = (selected["width"], selected["height"], 60)
+        # Reselecting the user's working size must not reset custom text scaling.
+        scale = self.fixed_scale() if self.fixed_size() == size else readable_scale(*size[:2])
+        return self.set_resolution(f"{size[0]}x{size[1]}", scale, identifier)
+
+    def set_resolution(self, value, scale=1, ipad_profile=""):
         with self.lock():
             if value == "auto":
                 self.preferences.unlink(missing_ok=True)
@@ -133,7 +146,13 @@ class DisplayFit:
             scale = self.validate_scale(target, scale)
             if not self.virtual.enabled() and not choose_mode(self.monitor(), target)["exact"]:
                 raise DisplayError("This display does not support that fixed resolution.", "Choose an advertised display mode. The previous setting was kept.")
-            save(self.preferences, dict(zip(("width", "height", "fps"), target), scale=scale))
+            preferences = dict(zip(("width", "height", "fps"), target), scale=scale)
+            if ipad_profile:
+                selected = profile(ipad_profile)
+                if not selected or (selected["width"], selected["height"]) != target[:2]:
+                    raise DisplayError("That iPad profile does not match the requested size.")
+                preferences["ipadProfile"] = ipad_profile
+            save(self.preferences, preferences)
             self.error.unlink(missing_ok=True)
             return target
 
@@ -237,11 +256,12 @@ class DisplayFit:
                         detail = f"Last stream requested {last[0]}×{last[1]}; set {setting}."
             return dict(resolutionReady=configured, resolutionActive=active, recommendedRes=text,
                         resolutionDetail=error or session.get("error", detail), resolutionError=error,
-                        resolutionPinned=bool(fixed), moonlightSetting=setting, nativeResolution=native)
+                        resolutionPinned=bool(fixed), moonlightSetting=setting, nativeResolution=native,
+                        ipadProfiles=profiles(), ipadProfile=load(self.preferences).get("ipadProfile", ""))
         except (DisplayError, KeyError, TypeError):
             return dict(resolutionReady=False, resolutionActive=False,
                         recommendedRes="Full · 60 fps", resolutionDetail="Use Repair to enable automatic iPad sizing.", resolutionError="",
-                        resolutionPinned=False, moonlightSetting="Full")
+                        resolutionPinned=False, moonlightSetting="Full", ipadProfiles=profiles(), ipadProfile="")
 
     def monitors(self, all_outputs=False):
         rc, output = self.beam.run(["hyprctl", "-j", "monitors", *(["all"] if all_outputs else [])])

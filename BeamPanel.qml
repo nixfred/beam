@@ -30,6 +30,11 @@ Ui.Panel {
     readonly property bool hostReady: !!(svc && svc.setupReady)
     readonly property string streamTitle: !svc || !fresh ? "Checking this desktop" : svc.streaming ? "Your desktop is live" : svc.allReady ? "Ready for your iPad" : "Let's get you connected"
     property bool expertMode: false
+    property bool sizingMode: false
+    property string ipadFamily: "iPad"
+    property string previewIpad: ""
+    readonly property var familyProfiles: svc ? svc.ipadProfiles.filter(function(p) { return p.family === panel.ipadFamily; }) : []
+    readonly property var selectedIpad: familyProfiles.find(function(p) { return p.id === panel.previewIpad; }) || familyProfiles[0] || null
     property int stepNumber: 2
     property bool initialized: false
     property bool removeConfirmation: false
@@ -38,8 +43,15 @@ Ui.Panel {
     readonly property var stepNames: ["What you need", "This computer", "iPad app", "Your login", "Connect", "Watch"]
 
     function setStep(number) {
+        sizingMode = false;
         stepNumber = Math.max(1, Math.min(6, number));
         removeConfirmation = false;
+    }
+    function showSizing(family) {
+        var saved = svc ? svc.ipadProfiles.find(function(p) { return p.id === svc.ipadProfile; }) : null;
+        ipadFamily = family || (saved ? saved.family : "iPad");
+        previewIpad = saved ? saved.id : "";
+        sizingMode = true;
     }
     function initialStep() {
         if (!initialized && svc && svc.ready) {
@@ -361,14 +373,19 @@ Ui.Panel {
                         text: panel.streamTitle
                     }
                     ActionButton {
+                        text: "iPad screen"
+                        prominent: panel.sizingMode
+                        onClicked: panel.showSizing("")
+                    }
+                    ActionButton {
                         text: "Guided"
-                        prominent: !panel.expertMode
-                        onClicked: panel.expertMode = false
+                        prominent: !panel.expertMode && !panel.sizingMode
+                        onClicked: { panel.sizingMode = false; panel.expertMode = false; }
                     }
                     ActionButton {
                         text: "Expert"
-                        prominent: panel.expertMode
-                        onClicked: panel.expertMode = true
+                        prominent: panel.expertMode && !panel.sizingMode
+                        onClicked: { panel.sizingMode = false; panel.expertMode = true; }
                     }
                     ActionButton {
                         text: "Close"
@@ -382,7 +399,7 @@ Ui.Panel {
                     color: panel.hairline
                 }
                 RowLayout {
-                    visible: !panel.expertMode
+                    visible: !panel.expertMode && !panel.sizingMode
                     Layout.fillWidth: true
                     spacing: 6
                     Repeater {
@@ -401,16 +418,16 @@ Ui.Panel {
                 // Guided pages are deliberate steps, never overflow tabs.
                 Loader {
                     id: guided
-                    visible: !panel.expertMode
+                    visible: !panel.expertMode || panel.sizingMode
                     active: visible
                     Layout.fillWidth: true
                     Layout.minimumHeight: 310
                     Layout.preferredHeight: Math.max(310, item ? item.implicitHeight : 0)
-                    sourceComponent: [needsPage, hostPage, ipadPage, loginPage, connectPage, watchPage][panel.stepNumber - 1]
+                    sourceComponent: panel.sizingMode ? sizingPage : [needsPage, hostPage, ipadPage, loginPage, connectPage, watchPage][panel.stepNumber - 1]
                 }
                 RowLayout {
                     id: expert
-                    visible: panel.expertMode
+                    visible: panel.expertMode && !panel.sizingMode
                     Layout.fillWidth: true
                     spacing: 12
                     Card {
@@ -683,7 +700,18 @@ Ui.Panel {
                     }
                 }
                 RowLayout {
-                    visible: !panel.expertMode
+                    visible: panel.sizingMode
+                    Layout.fillWidth: true
+                    ActionButton {
+                        text: "Back to setup"
+                        onClicked: panel.sizingMode = false
+                    }
+                    Caption {
+                        text: "Saved size: " + (svc ? svc.moonlightSetting : "Full") + " · Applies on the next launch."
+                    }
+                }
+                RowLayout {
+                    visible: !panel.expertMode && !panel.sizingMode
                     Layout.fillWidth: true
                     ActionButton {
                         text: "Back"
@@ -885,11 +913,103 @@ Ui.Panel {
                 Caption {
                     text: "Use a connected mouse and keyboard for your Beam desktop. Bluetooth is fine."
                 }
-                ActionButton {
-                    text: "Open App Store page here"
-                    enabled: !!svc && !svc.busy
-                    onClicked: svc.moonlight()
+                RowLayout {
+                    ActionButton {
+                        text: "Open App Store page here"
+                        enabled: !!svc && !svc.busy
+                        onClicked: svc.moonlight()
+                    }
+                    ActionButton {
+                        text: "Choose iPad screen"
+                        prominent: true
+                        onClicked: panel.showSizing("")
+                    }
                 }
+            }
+        }
+    }
+    Component {
+        id: sizingPage
+        ColumnLayout {
+            spacing: 12
+            Body {
+                text: "Find your model on the iPad: Settings → General → About → Model Name. Choose its family below."
+            }
+            RowLayout {
+                spacing: 8
+                Repeater {
+                    model: ["iPad", "Air", "mini", "Pro"]
+                    ActionButton {
+                        required property string modelData
+                        Layout.fillWidth: true
+                        Layout.preferredWidth: 1
+                        text: modelData === "iPad" ? "iPad" : "iPad " + modelData
+                        prominent: panel.ipadFamily === modelData
+                        onClicked: { panel.ipadFamily = modelData; panel.previewIpad = ""; }
+                    }
+                }
+            }
+            RowLayout {
+                spacing: 12
+                Card {
+                    Layout.preferredWidth: 0.95
+                    Layout.alignment: Qt.AlignTop
+                    title: "Choose your model"
+                    Repeater {
+                        model: panel.familyProfiles
+                        ActionButton {
+                            required property var modelData
+                            Layout.fillWidth: true
+                            text: modelData.label
+                            prominent: !!panel.selectedIpad && panel.selectedIpad.id === modelData.id
+                            onClicked: panel.previewIpad = modelData.id
+                        }
+                    }
+                    Caption {
+                        visible: panel.familyProfiles.length === 0
+                        text: "Waiting for the screen-size catalog. Use Check again to retry."
+                    }
+                }
+                Card {
+                    Layout.preferredWidth: 1.3
+                    Layout.alignment: Qt.AlignTop
+                    accented: true
+                    title: "Match both ends · Landscape · 60 FPS"
+                    Heading {
+                        text: panel.selectedIpad ? panel.selectedIpad.width + " × " + panel.selectedIpad.height : "Select a model"
+                    }
+                    Body {
+                        text: "1. Save this size for Beam’s desktop."
+                    }
+                    ActionButton {
+                        text: "Use this size"
+                        prominent: true
+                        enabled: !!panel.selectedIpad && !!svc && panel.fresh && svc.nativeResolution && svc.resolutionReady && !svc.busy
+                        onClicked: svc.selectIpad(panel.selectedIpad.id)
+                    }
+                    Body {
+                        text: "2. In Moonlight settings, choose Resolution → Custom. Enter the width and height above."
+                    }
+                    Body {
+                        text: "3. Quit the old session in Moonlight and relaunch Beam Desktop. Audio streams too."
+                    }
+                    Caption {
+                        text: svc && svc.nativeResolution ? "Native pixels keep the picture sharp. Text size is controlled separately by desktop scaling." : "Finish This computer setup first to enable custom screen sizes."
+                    }
+                    RowLayout {
+                        ActionButton {
+                            text: "Use Moonlight Full"
+                            enabled: !!svc && panel.fresh && svc.nativeResolution && !svc.busy
+                            onClicked: svc.useMoonlightFull()
+                        }
+                        Caption {
+                            text: "Model not listed? Select Full in Moonlight too."
+                        }
+                    }
+                }
+            }
+            Caption {
+                text: "Apple specifications · Checked 19 Sep 2026 · Older iPads: check Moonlight’s App Store compatibility."
             }
         }
     }

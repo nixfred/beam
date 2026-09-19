@@ -49,6 +49,55 @@ class NativeTests(unittest.TestCase):
         self.assertEqual(readable_scale(1280,720),1)
         self.assertEqual(readable_scale(1920,1080),1.5)
 
+    def test_every_ipad_profile_captures_native_size_and_restores_ultrawide(self):
+        from beam_ipads import PROFILES
+        original = copy.deepcopy(self.physical)
+        for profile in PROFILES:
+            with self.subTest(profile=profile['id']):
+                target = self.fit.select_ipad(profile['id'])
+                session = self.start(profile['width'], profile['height'])
+                self.assertEqual(tuple(session['target']), target)
+                self.assertEqual((session['applied']['width'], session['applied']['height']), target[:2])
+                self.assertIn('Moonlight matches', self.fit.status()['resolutionDetail'])
+                self.assertEqual(self.fit.status()['ipadProfile'], profile['id'])
+                self.fit.stop(session['token'])
+                self.assertEqual(self.physical, original)
+
+    def test_reselecting_same_ipad_pixels_preserves_custom_text_scale(self):
+        self.fit.set_resolution('2732x2048', 4/3)
+        self.fit.select_ipad('pro-2732')
+        self.assertEqual(self.fit.fixed_scale(), 4/3)
+        self.fit.select_ipad('air-2732')
+        self.assertEqual(self.fit.fixed_scale(), 4/3)
+
+    def test_ipad_selection_is_persistent_and_only_changes_next_session(self):
+        session = self.start(2732,2048)
+        self.fit.select_ipad('mini-2266')
+        self.assertEqual(next(m for m in self.rows if m['name']==OUTPUT)['width'],2732)
+        new_beam = beam.Beam(home=Path(self.temp.name), system=self.system)
+        self.assertEqual(new_beam.display.fixed_size(), (2266,1488,60))
+        self.fit.stop(session['token'])
+        session = self.start(2266,1488)
+        self.assertEqual(session['applied']['width'],2266)
+        self.fit.stop(session['token'])
+
+    def test_bad_profile_and_preinstall_selection_preserve_preferences(self):
+        self.fit.select_ipad('pro-2732')
+        before = self.fit.preferences.read_bytes()
+        with self.assertRaises(DisplayError):
+            self.fit.select_ipad('../../bad-profile')
+        self.assertEqual(self.fit.preferences.read_bytes(), before)
+        self.v.preferences.unlink()
+        with self.assertRaises(DisplayError):
+            self.fit.select_ipad('air-2360')
+        self.assertEqual(self.fit.preferences.read_bytes(), before)
+
+    def test_full_clears_model_selection(self):
+        self.fit.select_ipad('pro-2732')
+        self.fit.set_resolution('auto')
+        self.assertEqual(self.fit.status()['ipadProfile'], '')
+        self.assertEqual(self.fit.status()['moonlightSetting'], 'Full')
+
     def test_exact_client_size_ignores_physical_mode_limits_and_restores(self):
         original=copy.deepcopy(self.physical)
         s=self.start()

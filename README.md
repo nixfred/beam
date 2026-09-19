@@ -108,13 +108,15 @@ If a code change stays cached after rescanning, use `omarchy restart shell`.
 | :---: | :--- | :--- |
 | **01** | **What you need** | Get your iPad, mouse, and keyboard ready. |
 | **02** | **This computer** | Run setup. Watch installation, ports, startup, process, and capture checks update. |
-| **03** | **iPad app** | Scan the QR code for **Moonlight Game Streaming** by Diego Waxemberg. |
+| **03** | **iPad app** | Scan the QR code for **Moonlight Game Streaming**. Open **iPad screen** and choose your model. |
 | **04** | **Your login** | Create your Sunshine login on its local admin page. |
 | **05** | **Connect** | Add this computer in Moonlight, then enter its PIN on the linked Sunshine PIN page. |
-| **06** | **Watch** | Select **Full** resolution in Moonlight, then tap **Beam Desktop**. Beam fits the desktop to the requested picture size. |
+| **06** | **Watch** | Set Moonlight to the **Custom** dimensions Beam shows (or **Full** for automatic sizing), then launch **Beam Desktop**. |
 
 The step rail works in both directions. Your current progress is checked live.
 For repeat visits, switch to **Expert** for the address, QR codes, and PIN page.
+
+Setup installs Sunshine directly and uses one desktop-session launcher. It no longer invokes the broken `sunshine.service` enable step. **Repair** still finishes older interrupted installs, fixes duplicate startup, and routes login and pairing links correctly. A failed package transaction stops setup with a retry instruction.
 
 If Sunshine reports success creating your login, then shows **401 / Unauthorized**,
 open **Admin** and sign in with that new Sunshine username and password. Admin
@@ -144,9 +146,7 @@ tile, so either desktop entry fits the client. Existing customized apps stay int
 If updating an older Beam setup, quit the stream and run **Repair** once to enable
 sizing on the default tile.
 
-1. In Moonlight on the iPad, set **Resolution → Full** and **60 FPS**.
-   Full uses that iPad's actual screen dimensions. Safe Area deliberately leaves
-   room for system UI, so choose Full when filling the screen is the priority.
+1. Open **iPad screen** in Beam. Find the model under **Settings → General → About → Model Name** on the iPad, select it, and click **Use this size**. Enter the same dimensions in **Moonlight → Settings → Resolution → Custom**, at **60 FPS**. For an unlisted model, choose **Use Moonlight Full** in Beam and **Full** in Moonlight.
 2. Quit any existing stream, then open **Beam Desktop** or the stock **Desktop**
    tile. Resuming an old session does not rerun the sizing hooks.
 3. Beam creates a desktop at the **exact requested pixels**, using a named
@@ -158,7 +158,11 @@ sizing on the default tile.
 5. Ending the stream returns the workspaces and original monitor layout.
    **Restore display** in Expert also recovers an interrupted session.
 
-There is no single native resolution for every iPad. Apple's current 13-inch
+**[Find your iPad in the complete resolution guide](docs/ipad-resolutions.md).** The offline picker covers all 45 models in Apple’s identification list, grouped into 17 choices sharing 10 resolutions (verified 19 September 2026). It tells you exactly what to enter in Moonlight.
+
+![Beam’s model picker on a 1024×768 logical iPad workspace](docs/assets/ipad-picker.png)
+
+There is no single native resolution for every iPad. Apple’s current 13-inch
 Pro is [2752×2064](https://www.apple.com/ipad-pro/specs/); other models differ.
 At 200%, that gives a 1376×1032 workspace. A 2360×1640 iPad gets 1180×820.
 The virtual display removes the physical monitor's resolution limit, so an
@@ -267,15 +271,13 @@ omarchy plugin remove nixfred.beam
 
 | Verified locally | Evidence |
 | :--- | :--- |
-| **67 regression tests** | Ten backend, nine browser-routing, forty-one sizing/recovery, and seven service-state tests. |
+| **77 regression tests** | Seventy Python checks for setup, browser routing, native sizing and recovery, plus seven service-state checks. |
 | **Clean VM install and removal** | One running Sunshine after install; zero processes and zero streaming rules after removal. |
 | **No-scroll layouts** | All six guided steps, Expert, long errors, and confirmation at 1280×800; normal views on a 5120×1440 host. |
 | **Dark and light QR codes** | Both codes decoded from captured screens with software. |
 | **Awake-hold transitions** | A real Wayland idle observer responded to synthetic stream connect/disconnect events. |
 
-Physical iPad pairing, desktop video and audio are confirmed. Native Full
-resolution, image readability, input quality, camera scanning and actual
-stream-disconnect restoration still need physical iPad validation. Read the [full verification report](docs/verification/README.md)
+Physical iPad pairing, desktop video, audio and a matching custom 2732×2048 picture are confirmed by the user. Camera scanning, input quality and actual stream-disconnect restoration still need separate physical acceptance. Read the [full verification report](docs/verification/README.md)
 for methods, screenshots, and remaining checks.
 
 <details>
