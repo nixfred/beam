@@ -1,0 +1,348 @@
+{
+  "opened": true,
+  "expert": false,
+  "step": 4,
+  "screen": [
+    1280,
+    800
+  ],
+  "card": [
+    115,
+    31,
+    1160,
+    621
+  ],
+  "available": [
+    1270,
+    764
+  ],
+  "content": [
+    1128,
+    589,
+    589
+  ],
+  "fits": true,
+  "outside": [],
+  "texts": [
+    {
+      "text": "Beam",
+      "x": 24,
+      "y": 4,
+      "width": 46,
+      "height": 26,
+      "contentWidth": 45.5625,
+      "contentHeight": 26,
+      "font": 19
+    },
+    {
+      "text": "Let's get you connected",
+      "x": 82,
+      "y": 9,
+      "width": 808,
+      "height": 16,
+      "contentWidth": 165.3125,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Guided",
+      "x": 915,
+      "y": 9,
+      "width": 43.125,
+      "height": 16,
+      "contentWidth": 43.125,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Expert",
+      "x": 997,
+      "y": 9,
+      "width": 43.125,
+      "height": 16,
+      "contentWidth": 43.125,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Close",
+      "x": 1079,
+      "y": 9,
+      "width": 35.9375,
+      "height": 16,
+      "contentWidth": 35.9375,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "1  What you need",
+      "x": 34,
+      "y": 68,
+      "width": 115,
+      "height": 16,
+      "contentWidth": 115,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "\u2713  This computer",
+      "x": 223,
+      "y": 68,
+      "width": 115,
+      "height": 16,
+      "contentWidth": 115,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "3  iPad app",
+      "x": 430,
+      "y": 68,
+      "width": 79.0625,
+      "height": 16,
+      "contentWidth": 79.0625,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "4  Your login",
+      "x": 612,
+      "y": 68,
+      "width": 93.4375,
+      "height": 16,
+      "contentWidth": 93.4375,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "5  Connect",
+      "x": 812,
+      "y": 68,
+      "width": 71.875,
+      "height": 16,
+      "contentWidth": 71.875,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "6  Watch",
+      "x": 1008,
+      "y": 68,
+      "width": 57.5,
+      "height": 16,
+      "contentWidth": 57.5,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Create your Sunshine login.",
+      "x": 0,
+      "y": 112,
+      "width": 1128,
+      "height": 26,
+      "contentWidth": 307.546875,
+      "contentHeight": 26,
+      "font": 19
+    },
+    {
+      "text": "A new login, just for Sunshine",
+      "x": 12,
+      "y": 218,
+      "width": 533,
+      "height": 18,
+      "contentWidth": 233.90625,
+      "contentHeight": 18,
+      "font": 13
+    },
+    {
+      "text": "Choose a username and a new password on Sunshine's admin page.",
+      "x": 12,
+      "y": 245,
+      "width": 533,
+      "height": 18,
+      "contentWidth": 483.40625,
+      "contentHeight": 18,
+      "font": 13
+    },
+    {
+      "text": "Beam cannot see, store or recover this password.",
+      "x": 12,
+      "y": 272,
+      "width": 533,
+      "height": 16,
+      "contentWidth": 345,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Open Sunshine admin",
+      "x": 211,
+      "y": 306,
+      "width": 136.5625,
+      "height": 16,
+      "contentWidth": 136.5625,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "\u25cb",
+      "x": 12,
+      "y": 340,
+      "width": 18,
+      "height": 18,
+      "contentWidth": 7.796875,
+      "contentHeight": 18,
+      "font": 13
+    },
+    {
+      "text": "Waiting for you to create a login",
+      "x": 40,
+      "y": 341,
+      "width": 495,
+      "height": 16,
+      "contentWidth": 237.1875,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "",
+      "x": 545,
+      "y": 341,
+      "width": 0,
+      "height": 16,
+      "contentWidth": 0,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "About the certificate warning",
+      "x": 583,
+      "y": 218,
+      "width": 533,
+      "height": 18,
+      "contentWidth": 226.109375,
+      "contentHeight": 18,
+      "font": 13
+    },
+    {
+      "text": "Sunshine uses a local certificate, so your browser may show a privacy warning.",
+      "x": 583,
+      "y": 245,
+      "width": 533,
+      "height": 36,
+      "contentWidth": 475.609375,
+      "contentHeight": 36,
+      "font": 13
+    },
+    {
+      "text": "Check the page is https://localhost:47990, then use the browser's Advanced option to continue.",
+      "x": 583,
+      "y": 290,
+      "width": 533,
+      "height": 32,
+      "contentWidth": 531.875,
+      "contentHeight": 32,
+      "font": 12
+    },
+    {
+      "text": "Return here after creating your login. Beam checks automatically.",
+      "x": 583,
+      "y": 331,
+      "width": 533,
+      "height": 16,
+      "contentWidth": 467.1875,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Set up this computer",
+      "x": 12,
+      "y": 439,
+      "width": 1104,
+      "height": 18,
+      "contentWidth": 155.9375,
+      "contentHeight": 18,
+      "font": 13
+    },
+    {
+      "text": "This computer's installation is complete.",
+      "x": 12,
+      "y": 466,
+      "width": 982,
+      "height": 16,
+      "contentWidth": 294.6875,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Create your Sunshine login, then pair Moonlight on the iPad.",
+      "x": 12,
+      "y": 487,
+      "width": 982,
+      "height": 16,
+      "contentWidth": 431.25,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Check again",
+      "x": 1023,
+      "y": 477,
+      "width": 79.0625,
+      "height": 16,
+      "contentWidth": 79.0625,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Back",
+      "x": 14,
+      "y": 536,
+      "width": 28.75,
+      "height": 16,
+      "contentWidth": 28.75,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Step 4 of 6 \u00b7 Your progress is checked live.",
+      "x": 60,
+      "y": 536,
+      "width": 979,
+      "height": 16,
+      "contentWidth": 316.25,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Continue",
+      "x": 1057,
+      "y": 536,
+      "width": 57.5,
+      "height": 16,
+      "contentWidth": 57.5,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Beam \u00b7 Sunshine \u2192 Moonlight",
+      "x": 0,
+      "y": 573,
+      "width": 742,
+      "height": 16,
+      "contentWidth": 194.0625,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Tab / arrows to move \u00b7 Enter to select \u00b7 Esc to close",
+      "x": 747,
+      "y": 573,
+      "width": 381,
+      "height": 16,
+      "contentWidth": 380.9375,
+      "contentHeight": 16,
+      "font": 12
+    }
+  ]
+}

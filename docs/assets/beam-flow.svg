@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="330" viewBox="0 0 1200 330" role="img" aria-labelledby="title desc">
+  <title id="title">Beam prepares. Sunshine sends. Moonlight displays.</title>
+  <desc id="desc">On the Omarchy computer, Beam handles guided setup and live status for Sunshine. Sunshine streams the existing desktop across a reachable network to Moonlight on the iPad.</desc>
+  <defs>
+    <linearGradient id="bg" x2="1" y2="1"><stop stop-color="#0b1324"/><stop offset="1" stop-color="#080d17"/></linearGradient>
+    <linearGradient id="beam" gradientUnits="userSpaceOnUse" x1="783" y1="162" x2="852" y2="162"><stop stop-color="#a5b4fc"/><stop offset=".5" stop-color="#77d6ee"/><stop offset="1" stop-color="#fdc9a5"/></linearGradient>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0 0 6 3 0 6" fill="none" stroke="#77d6ee" stroke-width="1.5"/></marker>
+  </defs>
+  <rect width="1200" height="330" rx="22" fill="url(#bg)"/>
+  <rect x=".5" y=".5" width="1199" height="329" rx="22" fill="none" stroke="#26334d"/>
+  <g font-family="Inter,Arial,Helvetica,sans-serif">
+    <text x="40" y="45" fill="#a5b4fc" font-size="13" font-weight="700" letter-spacing="2.5">ON YOUR OMARCHY COMPUTER</text>
+    <text x="881" y="45" fill="#fdc9a5" font-size="13" font-weight="700" letter-spacing="2.5">ON YOUR iPAD</text>
+    <rect x="32" y="68" width="326" height="186" rx="15" fill="#141d32" stroke="#344565"/>
+    <circle cx="66" cy="104" r="7" fill="#a5b4fc"/>
+    <text x="85" y="112" fill="#f2f5ff" font-size="25" font-weight="700">Beam</text>
+    <text x="54" y="155" fill="#d6dfef" font-size="19">Prepares the connection.</text>
+    <text x="54" y="188" fill="#9aabc4" font-size="16">Guided setup · live checks</text>
+    <text x="54" y="218" fill="#9aabc4" font-size="16">Pairing links · awake hold</text>
+    <path d="M375 163H419" stroke="#a5b4fc" stroke-width="2" stroke-dasharray="4 5"/>
+    <rect x="436" y="68" width="326" height="186" rx="15" fill="#111d2b" stroke="#344565"/>
+    <g stroke="#77d6ee" stroke-width="2" fill="none"><circle cx="470" cy="104" r="8"/><path d="M470 90V86M470 122V118M456 104H452M488 104H484M460 94L457 91M480 114L483 117M460 114L457 117M480 94L483 91"/></g>
+    <text x="491" y="112" fill="#f2f5ff" font-size="25" font-weight="700">Sunshine</text>
+    <text x="458" y="155" fill="#d6dfef" font-size="19">Sends your desktop.</text>
+    <text x="458" y="188" fill="#9aabc4" font-size="16">Captures the active session</text>
+    <text x="458" y="218" fill="#9aabc4" font-size="16">Reports its actual encoder</text>
+    <path d="M783 162H852" stroke="url(#beam)" stroke-width="3" marker-end="url(#arrow)"/>
+    <rect x="872" y="68" width="296" height="186" rx="15" fill="#201b25" stroke="#55424b"/>
+    <g stroke="#fdc9a5" stroke-width="2" fill="none"><rect x="894" y="92" width="26" height="19" rx="3"/><path d="M917 99V104"/></g>
+    <text x="932" y="112" fill="#f2f5ff" font-size="25" font-weight="700">Moonlight</text>
+    <text x="894" y="155" fill="#d6dfef" font-size="19">Brings it to your iPad.</text>
+    <text x="894" y="188" fill="#baaabb" font-size="16">Pair this computer</text>
+    <text x="894" y="218" fill="#baaabb" font-size="16">Tap Desktop to connect</text>
+    <path d="M40 278H1160" stroke="#26334d"/>
+    <text x="600" y="307" fill="#9aabc4" font-size="15" text-anchor="middle">Your existing session. A reachable network. One clear path through setup.</text>
+  </g>
+</svg>

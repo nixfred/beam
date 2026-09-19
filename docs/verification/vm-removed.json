@@ -1,0 +1,91 @@
+{
+  "installed": false,
+  "version": "",
+  "running": false,
+  "processes": 0,
+  "unit": "",
+  "unitEnabled": false,
+  "autostart": false,
+  "adminUp": false,
+  "adminConfigured": false,
+  "adminKnown": false,
+  "adminUrl": "https://localhost:47990",
+  "pairedClients": 0,
+  "locked": false,
+  "qrAvailable": true,
+  "appStoreUrl": "https://apps.apple.com/app/id1000551566",
+  "inputReady": true,
+  "lastAction": {
+    "ok": true,
+    "action": "undo",
+    "message": "Sunshine and its saved pairing data were removed.",
+    "detail": "Existing iPads must pair again after reinstalling.",
+    "retryAction": "",
+    "id": "c54fb4c62e2f4a1b84d1ffaea5cf990e",
+    "state": "success",
+    "busy": false,
+    "phase": "complete",
+    "updatedAt": 1789845603808.377
+  },
+  "ufwPresent": true,
+  "ufwRules": 0,
+  "firewallState": "incomplete",
+  "firewallKnown": true,
+  "firewallReady": false,
+  "address": "192.168.124.105",
+  "addressKind": "lan",
+  "lanAddress": "192.168.124.105",
+  "tailscaleAddress": "",
+  "encoder": "",
+  "displayFound": false,
+  "streaming": false,
+  "streamCount": 0,
+  "logCurrent": false,
+  "encoderKind": "unknown",
+  "recommendedRes": "1920x1080 \u00b7 60fps",
+  "recommendedBitrate": 20,
+  "setupReady": false,
+  "nextStep": 2,
+  "ready": false,
+  "actionBusy": false,
+  "checks": [
+    {
+      "key": "installed",
+      "label": "Sunshine installed",
+      "ok": false,
+      "state": "attention"
+    },
+    {
+      "key": "firewall",
+      "label": "Streaming ports",
+      "ok": false,
+      "state": "attention"
+    },
+    {
+      "key": "autostart",
+      "label": "One startup method",
+      "ok": false,
+      "state": "attention"
+    },
+    {
+      "key": "running",
+      "label": "One Sunshine running",
+      "ok": false,
+      "state": "attention"
+    },
+    {
+      "key": "display",
+      "label": "Display captured",
+      "ok": false,
+      "state": "attention"
+    }
+  ],
+  "issues": [
+    {
+      "code": "missing",
+      "message": "Install Sunshine on this computer.",
+      "action": "install",
+      "detail": ""
+    }
+  ]
+}

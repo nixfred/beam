@@ -1,0 +1,423 @@
+#!/bin/bash
+#
+# omarchy-beam - stream this Omarchy session to an iPad, and know whether it works.
+#
+# This is the whole brain of the Beam plugin. The QML panel and bar widget only
+# ask this for JSON and relay button presses back, which is why the bar, the
+# wizard and a terminal can never disagree about what is going on.
+#
+# It deliberately does NOT know or care what kind of machine it runs on. A
+# laptop, a desktop and a VM are the same thing to it: an Omarchy session with a
+# display, an address, and an iPad somewhere that wants to see it.
+#
+# Two things it will never do, by design:
+#   - handle a sudo password. The install step opens a real terminal and lets
+#     the human type it. Nothing here reads, stores or passes one.
+#   - create or hold the Sunshine admin login. That is the human's secret.
+
+set -uo pipefail
+
+SUNSHINE_DIR="$HOME/.config/sunshine"
+SUNSHINE_LOG="$SUNSHINE_DIR/sunshine.log"
+SUNSHINE_CONF="$SUNSHINE_DIR/sunshine.conf"
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/omarchy-beam"
+CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/omarchy-beam"
+ADMIN_URL="https://localhost:47990"
+UFW_COMMENT="omarchy-sunshine"
+AUTOSTART="$HOME/.config/hypr/autostart.lua"
+AUTOSTART_ENTRY='o.launch_on_start("sunshine")'
+# The package renamed its unit in 2026.516. The stock Omarchy installer still
+# enables the old name under `set -e`, so it dies before the firewall, the web
+# app and the autostart line. Beam knows both names and repairs the aftermath.
+UNIT_OLD="sunshine.service"
+UNIT_NEW="app-dev.lizardbyte.app.Sunshine.service"
+
+mkdir -p "$STATE_DIR" "$CACHE_DIR"
+
+have() { command -v "$1" >/dev/null 2>&1; }
+jesc() { printf '%s' "${1-}" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' -e 's/\t/ /g' | tr -d '\000-\037'; }
+jbool() { [[ ${1:-0} == 1 ]] && printf 'true' || printf 'false'; }
+
+# ---------------------------------------------------------------- facts
+
+sunshine_installed() { have sunshine; }
+sunshine_running()   { pgrep -x sunshine >/dev/null 2>&1; }
+# pgrep -c prints its count AND exits non-zero when that count is zero, so a
+# `|| echo 0` fallback appends a second zero and every arithmetic test downstream
+# blows up on "0\n0". Capture, then default.
+sunshine_count()     { local n; n=$(pgrep -cx sunshine 2>/dev/null); printf '%s' "${n:-0}"; }
+
+sunshine_version() {
+  sunshine_installed || return 0
+  pacman -Q sunshine 2>/dev/null | awk '{print $2}'
+}
+
+# Which unit name this package actually ships, if any. Empty means the package
+# provides no user unit and the Hyprland autostart line is the only launcher.
+sunshine_unit() {
+  local u
+  for u in "$UNIT_NEW" "$UNIT_OLD"; do
+    systemctl --user list-unit-files "$u" >/dev/null 2>&1 &&
+      systemctl --user list-unit-files --no-legend "$u" 2>/dev/null | grep -q . && { printf '%s' "$u"; return; }
+  done
+}
+
+# A unit that is enabled AND an autostart line means two Sunshines fighting over
+# one display. Beam reports it rather than silently picking a winner.
+unit_enabled() {
+  local u; u=$(sunshine_unit); [[ -n $u ]] || return 1
+  [[ $(systemctl --user is-enabled "$u" 2>/dev/null) == "enabled" ]]
+}
+
+ufw_rules() {
+  local n
+  have ufw || { printf '0'; return; }
+  n=$(sudo -n ufw status 2>/dev/null | grep -c "$UFW_COMMENT")
+  printf '%s' "${n:-0}"
+}
+
+autostart_ok() { [[ -f $AUTOSTART ]] && grep -Fxq "$AUTOSTART_ENTRY" "$AUTOSTART"; }
+
+admin_up() {
+  have curl || return 1
+  curl -sk --max-time 2 -o /dev/null "$ADMIN_URL" 2>/dev/null
+}
+
+# The admin username lives in sunshine.conf; the password is a hash we never
+# read. Its presence is how we know the human finished the login step.
+admin_configured() { [[ -f $SUNSHINE_CONF ]] && grep -qE '^username[[:space:]]*=[[:space:]]*\S' "$SUNSHINE_CONF"; }
+
+paired_clients() {
+  local f="$SUNSHINE_DIR/sunshine_state.json"
+  [[ -f $f ]] || { echo 0; return; }
+  local n
+  if have jq; then
+    n=$(jq -r '[.. | objects | select(has("uniqueid") or has("uniqueID"))] | length' "$f" 2>/dev/null | tail -1)
+  else
+    n=$(grep -co 'uniqueid' "$f" 2>/dev/null)
+  fi
+  [[ $n =~ ^[0-9]+$ ]] || n=0
+  printf '%s' "$n"
+}
+
+# What Sunshine itself said it found, rather than what we guess from /dev/dri.
+# A virtio render node looks like a GPU and cannot encode a single frame, so
+# the only honest answer comes from Sunshine's own log.
+encoder() {
+  [[ -f $SUNSHINE_LOG ]] || return 0
+  grep -aoiE 'Found H\.?264 encoder: *[a-z0-9_]+' "$SUNSHINE_LOG" 2>/dev/null |
+    tail -1 | sed -E 's/.*: *//'
+}
+
+encoder_kind() {
+  local e; e=$(encoder)
+  case "$e" in
+    "")            printf 'unknown' ;;
+    *vaapi*|*nvenc*|*qsv*|*amf*|*vt*) printf 'hardware' ;;
+    *)             printf 'software' ;;
+  esac
+}
+
+display_found() {
+  [[ -f $SUNSHINE_LOG ]] && grep -aqiE 'Found display|Found monitor' "$SUNSHINE_LOG"
+}
+
+# Last CONNECTED/DISCONNECTED wins. Tail only: the log is append-only and a long
+# one would otherwise cost a full read on every two-second poll.
+streaming() {
+  [[ -f $SUNSHINE_LOG ]] || return 1
+  local last
+  last=$(grep -aiE 'CLIENT (CONNECTED|DISCONNECTED)' "$SUNSHINE_LOG" 2>/dev/null | tail -1)
+  [[ $last == *ONNECTED* && $last != *DISCONNECTED* ]]
+}
+
+# The address to type into Moonlight. A tailnet address works from anywhere the
+# iPad is; the LAN address only works at home. Prefer the one that travels.
+address() {
+  local ts lan
+  if have tailscale; then
+    ts=$(tailscale ip -4 2>/dev/null | head -1)
+  fi
+  lan=$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="src"){print $(i+1); exit}}')
+  printf '%s' "${ts:-$lan}"
+}
+
+address_kind() {
+  local a; a=$(address)
+  [[ -z $a ]] && { printf 'none'; return; }
+  [[ $a == 100.* ]] && printf 'tailscale' || printf 'lan'
+}
+
+lan_address() {
+  ip -4 route get 1.1.1.1 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="src"){print $(i+1); exit}}'
+}
+
+session_locked() {
+  have hyprctl || return 1
+  hyprctl -j clients 2>/dev/null | grep -q 'hyprlock' && return 0
+  pgrep -x hyprlock >/dev/null 2>&1
+}
+
+# Which numbered step the wizard should open on. This is the single definition
+# of "how far did I get", so the panel, the bar dot and a notification can never
+# tell the user three different stories.
+next_step() {
+  sunshine_installed || { echo 2; return; }
+  { [[ $(ufw_rules) -gt 0 ]] || ! have ufw; } && autostart_ok || { echo 2; return; }
+  sunshine_running || { echo 2; return; }
+  admin_configured || { echo 4; return; }
+  [[ $(paired_clients) -gt 0 ]] || { echo 5; return; }
+  echo 6
+}
+
+# ---------------------------------------------------------------- output
+
+cmd_status() {
+  local enc kind addr akind clients step
+  enc=$(encoder); kind=$(encoder_kind); addr=$(address); akind=$(address_kind)
+  clients=$(paired_clients); step=$(next_step)
+  cat <<EOF
+{
+  "installed": $(jbool $(sunshine_installed && echo 1 || echo 0)),
+  "version": "$(jesc "$(sunshine_version)")",
+  "running": $(jbool $(sunshine_running && echo 1 || echo 0)),
+  "processes": $(sunshine_count),
+  "unit": "$(jesc "$(sunshine_unit)")",
+  "unitEnabled": $(jbool $(unit_enabled && echo 1 || echo 0)),
+  "ufwRules": $(ufw_rules),
+  "ufwPresent": $(jbool $(have ufw && echo 1 || echo 0)),
+  "autostart": $(jbool $(autostart_ok && echo 1 || echo 0)),
+  "adminUp": $(jbool $(admin_up && echo 1 || echo 0)),
+  "adminConfigured": $(jbool $(admin_configured && echo 1 || echo 0)),
+  "adminUrl": "$ADMIN_URL",
+  "displayFound": $(jbool $(display_found && echo 1 || echo 0)),
+  "encoder": "$(jesc "$enc")",
+  "encoderKind": "$kind",
+  "recommendedRes": "$([[ $kind == hardware ]] && echo '2560x1600 · 60fps' || echo '1920x1080 · 60fps')",
+  "recommendedBitrate": $([[ $kind == hardware ]] && echo 40 || echo 20),
+  "pairedClients": $clients,
+  "streaming": $(jbool $(streaming && echo 1 || echo 0)),
+  "locked": $(jbool $(session_locked && echo 1 || echo 0)),
+  "address": "$(jesc "$addr")",
+  "addressKind": "$akind",
+  "lanAddress": "$(jesc "$(lan_address)")",
+  "nextStep": $step,
+  "ready": $(jbool $([[ $step -ge 6 ]] && echo 1 || echo 0))
+}
+EOF
+}
+
+cmd_doctor() {
+  local ok="  ok " no="FAIL "
+  echo "Beam check on $(hostname)"
+  echo
+  printf '%s sunshine installed%s\n' "$(sunshine_installed && echo "$ok" || echo "$no")" \
+    "$(sunshine_installed && echo " ($(sunshine_version))" || echo "")"
+  printf '%s sunshine running (%s process)\n' "$(sunshine_running && echo "$ok" || echo "$no")" "$(sunshine_count)"
+  [[ $(sunshine_count) -gt 1 ]] && echo "       two Sunshines are running. Disable the systemd unit: systemctl --user disable $(sunshine_unit)"
+  printf '%s firewall rules (%s)\n' "$([[ $(ufw_rules) -gt 0 ]] && echo "$ok" || echo "$no")" "$(ufw_rules)"
+  printf '%s hyprland autostart line\n' "$(autostart_ok && echo "$ok" || echo "$no")"
+  printf '%s display captured\n' "$(display_found && echo "$ok" || echo "$no")"
+  printf '%s encoder: %s (%s)\n' "$([[ -n $(encoder) ]] && echo "$ok" || echo "$no")" "$(encoder || echo none)" "$(encoder_kind)"
+  printf '%s admin login created\n' "$(admin_configured && echo "$ok" || echo "$no")"
+  printf '%s paired devices: %s\n' "$([[ $(paired_clients) -gt 0 ]] && echo "$ok" || echo "$no")" "$(paired_clients)"
+  printf '%s streaming right now\n' "$(streaming && echo "$ok" || echo "  - ")"
+  echo
+  echo "Address for Moonlight: $(address)  ($(address_kind))"
+  if unit_enabled && autostart_ok; then
+    echo
+    echo "WARNING: the systemd unit is enabled AND the autostart line is present."
+    echo "That starts two Sunshines on one display. Run: omarchy-beam repair"
+  fi
+}
+
+# ---------------------------------------------------------------- actions
+
+# Everything that needs root runs in a terminal the human can see and type into.
+# Beam never takes a password.
+cmd_install() {
+  echo "Installing Sunshine through Omarchy's own installer."
+  echo "You will be asked for your password. Beam never sees it."
+  echo
+  OMARCHY_PATH=${OMARCHY_PATH:-/usr/share/omarchy} omarchy install service sunshine
+  local rc=$?
+  echo
+  if [[ $rc -ne 0 ]]; then
+    echo "The stock installer stopped early (exit $rc)."
+    echo "This is the known unit-rename bug. Finishing the remaining steps..."
+  fi
+  cmd_repair
+  echo
+  echo "Done. Back to the Beam panel for the next step."
+}
+
+# Finish or undo whatever the stock installer left half-done, and make sure
+# exactly one Sunshine can start.
+cmd_repair() {
+  local changed=0
+
+  if ! sunshine_installed; then
+    echo "Sunshine is not installed yet. Run: omarchy-beam install"
+    return 1
+  fi
+
+  # The autostart line is the launcher Omarchy expects; the unit is the one the
+  # package ships. Keeping both is the double-Sunshine bug.
+  if unit_enabled; then
+    echo "Disabling the packaged systemd unit so only one Sunshine starts."
+    systemctl --user disable --now "$(sunshine_unit)" >/dev/null 2>&1
+    changed=1
+  fi
+
+  if ! autostart_ok; then
+    echo "Adding the Hyprland autostart line."
+    mkdir -p "$(dirname "$AUTOSTART")"; touch "$AUTOSTART"
+    printf '\n%s\n' "$AUTOSTART_ENTRY" >>"$AUTOSTART"
+    changed=1
+  fi
+
+  if have ufw && [[ $(ufw_rules) -eq 0 ]]; then
+    echo "Opening Moonlight's ports. You will be asked for your password."
+    beam_open_ports || echo "Firewall step failed. Run 'omarchy-beam ports' to retry."
+    changed=1
+  fi
+
+  if ! sunshine_running; then
+    echo "Starting Sunshine."
+    setsid -f uwsm-app -- sunshine >/dev/null 2>&1 </dev/null ||
+      setsid -f sunshine >/dev/null 2>&1 </dev/null
+    sleep 2
+    changed=1
+  fi
+
+  [[ $changed -eq 0 ]] && echo "Nothing to repair."
+  return 0
+}
+
+# Reuse the stock installer's own firewall function rather than hand-rolling
+# rules, so Beam opens exactly what Omarchy opens and nothing wider.
+beam_open_ports() {
+  local src=/usr/bin/omarchy-install-service-sunshine n d
+  [[ -f $src ]] || { echo "Omarchy's sunshine installer is missing."; return 1; }
+  n=$(grep -nxF 'echo "Installing Sunshine..."' "$src" | cut -d: -f1)
+  [[ -n $n ]] || { echo "Cannot read the installer's firewall function."; return 1; }
+  d=$(mktemp -d) || return 1
+  { head -n $((n - 1)) "$src"; echo open_ufw_ports; } >"$d/ufw.sh"
+  chmod 0755 "$d"; chmod 0644 "$d"/*.sh
+  # One root call for the whole step: the script's inner "sudo ufw" lines then
+  # need no further authentication. Priming sudo and running a subshell does
+  # not work over SSH without a TTY, which is how this fails silently.
+  sudo env PATH=/usr/bin bash "$d/ufw.sh"
+  local rc=$?
+  rm -rf -- "$d"
+  return $rc
+}
+
+cmd_ports() { beam_open_ports; }
+
+cmd_undo() {
+  echo "This removes Sunshine, its firewall rules, its autostart line and the admin web app."
+  OMARCHY_PATH=${OMARCHY_PATH:-/usr/share/omarchy} omarchy remove service sunshine
+  local u; u=$(sunshine_unit)
+  [[ -n $u ]] && systemctl --user disable --now "$u" >/dev/null 2>&1
+  rm -f "$STATE_DIR/greeted" "$STATE_DIR/awake-held"
+  echo "Done."
+}
+
+cmd_admin() { beam_open_url "$ADMIN_URL"; }
+cmd_pin()   { beam_open_url "$ADMIN_URL/pin"; }
+
+beam_open_url() {
+  if have omarchy-launch-webapp; then
+    setsid -f omarchy-launch-webapp "$1" --ignore-certificate-errors >/dev/null 2>&1 </dev/null
+  else
+    setsid -f xdg-open "$1" >/dev/null 2>&1 </dev/null
+  fi
+}
+
+# A QR code beats typing an IP address on a touch keyboard, and beats searching
+# an app store by name. Cached by content hash: the panel asks for these on
+# every open and regenerating is wasted work.
+cmd_qr() {
+  local text="${1:?usage: omarchy-beam qr <text>}" fg="${2:-000000}" bg="${3:-FFFFFF}"
+  have qrencode || { echo "qrencode is not installed" >&2; return 1; }
+  local key out
+  key=$(printf '%s|%s|%s' "$text" "$fg" "$bg" | cksum | tr -d ' ')
+  out="$CACHE_DIR/qr-$key.png"
+  [[ -f $out ]] || qrencode -o "$out" -s 8 -m 2 -l M \
+    --foreground="$fg" --background="$bg" "$text" 2>/dev/null
+  printf '%s' "$out"
+}
+
+# The single highest-value automation here. A locked or idle session streams a
+# black screen, which is the first row of every troubleshooting table ever
+# written about Sunshine. Hold the session awake while an iPad is watching, and
+# give idling back the moment it stops.
+cmd_hold() {
+  local want="${1:-auto}" held="$STATE_DIR/awake-held"
+  have omarchy || return 0
+  export OMARCHY_PATH=${OMARCHY_PATH:-/usr/share/omarchy}
+  [[ $want == auto ]] && { streaming && want=on || want=off; }
+  case "$want" in
+    on)
+      [[ -f $held ]] && return 0
+      omarchy toggle idle stay-awake >/dev/null 2>&1 && : >"$held"
+      omarchy system wake >/dev/null 2>&1
+      ;;
+    off)
+      [[ -f $held ]] || return 0
+      omarchy toggle idle allow-idle >/dev/null 2>&1 && rm -f "$held"
+      ;;
+  esac
+}
+
+# Fires once, ever, and only when there is genuinely nothing set up. Someone who
+# installs a plugin and is then told nothing has no way to discover it.
+cmd_greet() {
+  local marker="$STATE_DIR/greeted"
+  [[ -f $marker ]] && return 0
+  [[ $(next_step) -ge 6 ]] && { : >"$marker"; return 0; }
+  : >"$marker"
+  have omarchy-notification-send &&
+    omarchy-notification-send "Beam is ready to set up" \
+      "Click the Beam dot in your bar to stream this desktop to your iPad."
+}
+
+cmd_address() { address; }
+
+usage() {
+  cat <<'EOF'
+omarchy-beam - stream this Omarchy session to an iPad
+
+  status [--json]   everything Beam knows, as JSON
+  doctor            the same, readable, with what to do about it
+  install           install Sunshine and finish what the stock installer skips
+  repair            fix a half-finished install, or a double Sunshine
+  ports             (re)open Moonlight's firewall ports
+  admin             open the Sunshine admin page
+  pin               open the admin page's PIN tab
+  qr <text>         write a QR png and print its path
+  hold on|off|auto  hold the session awake while an iPad is watching
+  address           the address to type into Moonlight
+  undo              remove Sunshine and everything this added
+
+Beam never handles your sudo password and never creates your Sunshine login.
+EOF
+}
+
+case "${1:-}" in
+  status)  shift; cmd_status "$@" ;;
+  doctor)  shift; cmd_doctor "$@" ;;
+  install) shift; cmd_install "$@" ;;
+  repair)  shift; cmd_repair "$@" ;;
+  ports)   shift; cmd_ports "$@" ;;
+  admin)   shift; cmd_admin "$@" ;;
+  pin)     shift; cmd_pin "$@" ;;
+  qr)      shift; cmd_qr "$@" ;;
+  hold)    shift; cmd_hold "$@" ;;
+  greet)   shift; cmd_greet "$@" ;;
+  address) shift; cmd_address "$@" ;;
+  undo)    shift; cmd_undo "$@" ;;
+  ""|-h|--help|help) usage ;;
+  *) echo "unknown command: $1" >&2; usage >&2; exit 1 ;;
+esac

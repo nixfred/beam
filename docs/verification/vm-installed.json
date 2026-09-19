@@ -1,0 +1,84 @@
+{
+  "installed": true,
+  "version": "2026.516.143833-4",
+  "running": true,
+  "processes": 1,
+  "unit": "app-dev.lizardbyte.app.Sunshine.service",
+  "unitEnabled": false,
+  "autostart": true,
+  "adminUp": true,
+  "adminConfigured": false,
+  "adminKnown": true,
+  "adminUrl": "https://localhost:47990",
+  "pairedClients": 0,
+  "locked": false,
+  "qrAvailable": true,
+  "appStoreUrl": "https://apps.apple.com/app/id1000551566",
+  "inputReady": true,
+  "lastAction": {
+    "ok": true,
+    "action": "install",
+    "message": "This computer's installation is complete.",
+    "detail": "Create your Sunshine login, then pair Moonlight on the iPad.",
+    "retryAction": "",
+    "id": "fdd13750e5a945128823af8896f06455",
+    "state": "success",
+    "busy": false,
+    "phase": "complete",
+    "updatedAt": 1789845117179.3423
+  },
+  "ufwPresent": true,
+  "ufwRules": 27,
+  "firewallState": "open",
+  "firewallKnown": true,
+  "firewallReady": true,
+  "address": "192.168.124.105",
+  "addressKind": "lan",
+  "lanAddress": "192.168.124.105",
+  "tailscaleAddress": "",
+  "encoder": "libx264",
+  "displayFound": true,
+  "streaming": false,
+  "streamCount": 0,
+  "logCurrent": true,
+  "encoderKind": "software",
+  "recommendedRes": "1920x1080 \u00b7 60fps",
+  "recommendedBitrate": 20,
+  "setupReady": true,
+  "nextStep": 4,
+  "ready": false,
+  "actionBusy": false,
+  "checks": [
+    {
+      "key": "installed",
+      "label": "Sunshine installed",
+      "ok": true,
+      "state": "ok"
+    },
+    {
+      "key": "firewall",
+      "label": "Streaming ports",
+      "ok": true,
+      "state": "ok"
+    },
+    {
+      "key": "autostart",
+      "label": "One startup method",
+      "ok": true,
+      "state": "ok"
+    },
+    {
+      "key": "running",
+      "label": "One Sunshine running",
+      "ok": true,
+      "state": "ok"
+    },
+    {
+      "key": "display",
+      "label": "Display captured",
+      "ok": true,
+      "state": "ok"
+    }
+  ],
+  "issues": []
+}

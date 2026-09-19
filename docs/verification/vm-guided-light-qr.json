@@ -1,0 +1,328 @@
+{
+  "opened": true,
+  "expert": false,
+  "step": 3,
+  "screen": [
+    1280,
+    800
+  ],
+  "card": [
+    115,
+    31,
+    1160,
+    653
+  ],
+  "available": [
+    1270,
+    764
+  ],
+  "content": [
+    1128,
+    621,
+    621
+  ],
+  "fits": true,
+  "outside": [],
+  "texts": [
+    {
+      "text": "Beam",
+      "x": 24,
+      "y": 4,
+      "width": 46,
+      "height": 26,
+      "contentWidth": 45.5625,
+      "contentHeight": 26,
+      "font": 19
+    },
+    {
+      "text": "Let's get you connected",
+      "x": 82,
+      "y": 9,
+      "width": 808,
+      "height": 16,
+      "contentWidth": 165.3125,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Guided",
+      "x": 915,
+      "y": 9,
+      "width": 43.125,
+      "height": 16,
+      "contentWidth": 43.125,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Expert",
+      "x": 997,
+      "y": 9,
+      "width": 43.125,
+      "height": 16,
+      "contentWidth": 43.125,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Close",
+      "x": 1079,
+      "y": 9,
+      "width": 35.9375,
+      "height": 16,
+      "contentWidth": 35.9375,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "1  What you need",
+      "x": 34,
+      "y": 68,
+      "width": 115,
+      "height": 16,
+      "contentWidth": 115,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "\u2713  This computer",
+      "x": 223,
+      "y": 68,
+      "width": 115,
+      "height": 16,
+      "contentWidth": 115,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "3  iPad app",
+      "x": 430,
+      "y": 68,
+      "width": 79.0625,
+      "height": 16,
+      "contentWidth": 79.0625,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "4  Your login",
+      "x": 612,
+      "y": 68,
+      "width": 93.4375,
+      "height": 16,
+      "contentWidth": 93.4375,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "5  Connect",
+      "x": 812,
+      "y": 68,
+      "width": 71.875,
+      "height": 16,
+      "contentWidth": 71.875,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "6  Watch",
+      "x": 1008,
+      "y": 68,
+      "width": 57.5,
+      "height": 16,
+      "contentWidth": 57.5,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Install Moonlight on your iPad.",
+      "x": 252,
+      "y": 139,
+      "width": 876,
+      "height": 26,
+      "contentWidth": 353.109375,
+      "contentHeight": 26,
+      "font": 19
+    },
+    {
+      "text": "1",
+      "x": 259,
+      "y": 182,
+      "width": 7.1875,
+      "height": 16,
+      "contentWidth": 7.1875,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Open the iPad Camera and scan this QR code.",
+      "x": 284,
+      "y": 181,
+      "width": 844,
+      "height": 18,
+      "contentWidth": 335.265625,
+      "contentHeight": 18,
+      "font": 13
+    },
+    {
+      "text": "2",
+      "x": 259,
+      "y": 218,
+      "width": 7.1875,
+      "height": 16,
+      "contentWidth": 7.1875,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Install Moonlight Game Streaming by Diego Waxemberg.",
+      "x": 284,
+      "y": 217,
+      "width": 844,
+      "height": 18,
+      "contentWidth": 405.4375,
+      "contentHeight": 18,
+      "font": 13
+    },
+    {
+      "text": "3",
+      "x": 259,
+      "y": 254,
+      "width": 7.1875,
+      "height": 16,
+      "contentWidth": 7.1875,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Open Moonlight and allow Local Network access when asked.",
+      "x": 284,
+      "y": 253,
+      "width": 844,
+      "height": 18,
+      "contentWidth": 444.421875,
+      "contentHeight": 18,
+      "font": 13
+    },
+    {
+      "text": "Free in the App Store \u00b7 apps.apple.com/app/id1000551566",
+      "x": 252,
+      "y": 287,
+      "width": 876,
+      "height": 16,
+      "contentWidth": 395.3125,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Use a connected mouse and keyboard for your Beam desktop. Bluetooth is fine.",
+      "x": 252,
+      "y": 317,
+      "width": 876,
+      "height": 16,
+      "contentWidth": 546.25,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Open App Store page here",
+      "x": 266,
+      "y": 356,
+      "width": 172.5,
+      "height": 16,
+      "contentWidth": 172.5,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Repair setup",
+      "x": 12,
+      "y": 439,
+      "width": 1104,
+      "height": 18,
+      "contentWidth": 93.5625,
+      "contentHeight": 18,
+      "font": 13
+    },
+    {
+      "text": "Streaming ports could not be verified after setup. Omarchy's Sunshine installer changed or is missing, so Beam could not safely finish the requested repair.",
+      "x": 12,
+      "y": 466,
+      "width": 982,
+      "height": 32,
+      "contentWidth": 963.125,
+      "contentHeight": 32,
+      "font": 12
+    },
+    {
+      "text": "Check the setup terminal for the failed command. Update Beam and Omarchy, then retry Ports. Keep this desktop session open and unlocked before reconnecting the iPad.",
+      "x": 12,
+      "y": 503,
+      "width": 982,
+      "height": 32,
+      "contentWidth": 970.3125,
+      "contentHeight": 32,
+      "font": 12
+    },
+    {
+      "text": "Check again",
+      "x": 1023,
+      "y": 493,
+      "width": 79.0625,
+      "height": 16,
+      "contentWidth": 79.0625,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Back",
+      "x": 14,
+      "y": 568,
+      "width": 28.75,
+      "height": 16,
+      "contentWidth": 28.75,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Step 3 of 6 \u00b7 Confirm when Moonlight is installed.",
+      "x": 60,
+      "y": 568,
+      "width": 878,
+      "height": 16,
+      "contentWidth": 359.375,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Moonlight is installed",
+      "x": 957,
+      "y": 568,
+      "width": 158.125,
+      "height": 16,
+      "contentWidth": 158.125,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Beam \u00b7 Sunshine \u2192 Moonlight",
+      "x": 0,
+      "y": 605,
+      "width": 742,
+      "height": 16,
+      "contentWidth": 194.0625,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Tab / arrows to move \u00b7 Enter to select \u00b7 Esc to close",
+      "x": 747,
+      "y": 605,
+      "width": 381,
+      "height": 16,
+      "contentWidth": 380.9375,
+      "contentHeight": 16,
+      "font": 12
+    }
+  ]
+}

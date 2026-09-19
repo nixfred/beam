@@ -1,0 +1,378 @@
+{
+  "opened": true,
+  "expert": false,
+  "step": 5,
+  "screen": [
+    1280,
+    800
+  ],
+  "card": [
+    115,
+    31,
+    1160,
+    621
+  ],
+  "available": [
+    1270,
+    764
+  ],
+  "content": [
+    1128,
+    589,
+    589
+  ],
+  "fits": true,
+  "outside": [],
+  "texts": [
+    {
+      "text": "Beam",
+      "x": 24,
+      "y": 4,
+      "width": 46,
+      "height": 26,
+      "contentWidth": 45.5625,
+      "contentHeight": 26,
+      "font": 19
+    },
+    {
+      "text": "Let's get you connected",
+      "x": 82,
+      "y": 9,
+      "width": 808,
+      "height": 16,
+      "contentWidth": 165.3125,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Guided",
+      "x": 915,
+      "y": 9,
+      "width": 43.125,
+      "height": 16,
+      "contentWidth": 43.125,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Expert",
+      "x": 997,
+      "y": 9,
+      "width": 43.125,
+      "height": 16,
+      "contentWidth": 43.125,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Close",
+      "x": 1079,
+      "y": 9,
+      "width": 35.9375,
+      "height": 16,
+      "contentWidth": 35.9375,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "1  What you need",
+      "x": 34,
+      "y": 68,
+      "width": 115,
+      "height": 16,
+      "contentWidth": 115,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "\u2713  This computer",
+      "x": 223,
+      "y": 68,
+      "width": 115,
+      "height": 16,
+      "contentWidth": 115,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "3  iPad app",
+      "x": 430,
+      "y": 68,
+      "width": 79.0625,
+      "height": 16,
+      "contentWidth": 79.0625,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "4  Your login",
+      "x": 612,
+      "y": 68,
+      "width": 93.4375,
+      "height": 16,
+      "contentWidth": 93.4375,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "5  Connect",
+      "x": 812,
+      "y": 68,
+      "width": 71.875,
+      "height": 16,
+      "contentWidth": 71.875,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "6  Watch",
+      "x": 1008,
+      "y": 68,
+      "width": 57.5,
+      "height": 16,
+      "contentWidth": 57.5,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "192.168.124.105",
+      "x": 0,
+      "y": 319,
+      "width": 293,
+      "height": 28,
+      "contentWidth": 188.90625,
+      "contentHeight": 28,
+      "font": 21
+    },
+    {
+      "text": "Scan to copy the address. Paste it into Moonlight's Add PC field.",
+      "x": 0,
+      "y": 357,
+      "width": 293,
+      "height": 32,
+      "contentWidth": 280.3125,
+      "contentHeight": 32,
+      "font": 12
+    },
+    {
+      "text": "Pair your iPad.",
+      "x": 317,
+      "y": 128,
+      "width": 811,
+      "height": 26,
+      "contentWidth": 170.859375,
+      "contentHeight": 26,
+      "font": 19
+    },
+    {
+      "text": "First pairing needs the iPad and computer on the same network. Allow Moonlight Local Network access.",
+      "x": 317,
+      "y": 166,
+      "width": 811,
+      "height": 16,
+      "contentWidth": 718.75,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "1",
+      "x": 324,
+      "y": 197,
+      "width": 7.1875,
+      "height": 16,
+      "contentWidth": 7.1875,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Open Moonlight. Select this PC, or use + to add the address shown here.",
+      "x": 349,
+      "y": 196,
+      "width": 779,
+      "height": 18,
+      "contentWidth": 553.578125,
+      "contentHeight": 18,
+      "font": 13
+    },
+    {
+      "text": "2",
+      "x": 324,
+      "y": 231,
+      "width": 7.1875,
+      "height": 16,
+      "contentWidth": 7.1875,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Tap the PC. Moonlight shows a four-digit PIN.",
+      "x": 349,
+      "y": 230,
+      "width": 779,
+      "height": 18,
+      "contentWidth": 350.859375,
+      "contentHeight": 18,
+      "font": 13
+    },
+    {
+      "text": "3",
+      "x": 324,
+      "y": 265,
+      "width": 7.1875,
+      "height": 16,
+      "contentWidth": 7.1875,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Open the PIN page here and enter the PIN from the iPad.",
+      "x": 349,
+      "y": 264,
+      "width": 779,
+      "height": 18,
+      "contentWidth": 428.828125,
+      "contentHeight": 18,
+      "font": 13
+    },
+    {
+      "text": "4",
+      "x": 324,
+      "y": 299,
+      "width": 7.1875,
+      "height": 16,
+      "contentWidth": 7.1875,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "On the iPad, tap Desktop to start streaming.",
+      "x": 349,
+      "y": 298,
+      "width": 779,
+      "height": 18,
+      "contentWidth": 343.0625,
+      "contentHeight": 18,
+      "font": 13
+    },
+    {
+      "text": "Open PIN page",
+      "x": 330,
+      "y": 339,
+      "width": 93.4375,
+      "height": 16,
+      "contentWidth": 93.4375,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Waiting for pairing",
+      "x": 442,
+      "y": 339,
+      "width": 686,
+      "height": 16,
+      "contentWidth": 136.5625,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Local address: use while the iPad can reach this network.",
+      "x": 317,
+      "y": 376,
+      "width": 811,
+      "height": 16,
+      "contentWidth": 409.6875,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Set up this computer",
+      "x": 12,
+      "y": 439,
+      "width": 1104,
+      "height": 18,
+      "contentWidth": 155.9375,
+      "contentHeight": 18,
+      "font": 13
+    },
+    {
+      "text": "This computer's installation is complete.",
+      "x": 12,
+      "y": 466,
+      "width": 982,
+      "height": 16,
+      "contentWidth": 294.6875,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Create your Sunshine login, then pair Moonlight on the iPad.",
+      "x": 12,
+      "y": 487,
+      "width": 982,
+      "height": 16,
+      "contentWidth": 431.25,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Check again",
+      "x": 1023,
+      "y": 477,
+      "width": 79.0625,
+      "height": 16,
+      "contentWidth": 79.0625,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Back",
+      "x": 14,
+      "y": 536,
+      "width": 28.75,
+      "height": 16,
+      "contentWidth": 28.75,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Step 5 of 6 \u00b7 Your progress is checked live.",
+      "x": 60,
+      "y": 536,
+      "width": 979,
+      "height": 16,
+      "contentWidth": 316.25,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Continue",
+      "x": 1057,
+      "y": 536,
+      "width": 57.5,
+      "height": 16,
+      "contentWidth": 57.5,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Beam \u00b7 Sunshine \u2192 Moonlight",
+      "x": 0,
+      "y": 573,
+      "width": 742,
+      "height": 16,
+      "contentWidth": 194.0625,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Tab / arrows to move \u00b7 Enter to select \u00b7 Esc to close",
+      "x": 747,
+      "y": 573,
+      "width": 381,
+      "height": 16,
+      "contentWidth": 380.9375,
+      "contentHeight": 16,
+      "font": 12
+    }
+  ]
+}

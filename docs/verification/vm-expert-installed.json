@@ -1,0 +1,568 @@
+{
+  "opened": true,
+  "expert": true,
+  "step": 6,
+  "screen": [
+    1280,
+    800
+  ],
+  "card": [
+    115,
+    31,
+    1160,
+    602
+  ],
+  "available": [
+    1270,
+    764
+  ],
+  "content": [
+    1128,
+    570,
+    570
+  ],
+  "fits": true,
+  "outside": [],
+  "texts": [
+    {
+      "text": "Beam",
+      "x": 24,
+      "y": 4,
+      "width": 46,
+      "height": 26,
+      "contentWidth": 45.5625,
+      "contentHeight": 26,
+      "font": 19
+    },
+    {
+      "text": "Let's get you connected",
+      "x": 82,
+      "y": 9,
+      "width": 808,
+      "height": 16,
+      "contentWidth": 165.3125,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Guided",
+      "x": 915,
+      "y": 9,
+      "width": 43.125,
+      "height": 16,
+      "contentWidth": 43.125,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Expert",
+      "x": 997,
+      "y": 9,
+      "width": 43.125,
+      "height": 16,
+      "contentWidth": 43.125,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Close",
+      "x": 1079,
+      "y": 9,
+      "width": 35.9375,
+      "height": 16,
+      "contentWidth": 35.9375,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "This computer",
+      "x": 12,
+      "y": 71,
+      "width": 354,
+      "height": 18,
+      "contentWidth": 101.359375,
+      "contentHeight": 18,
+      "font": 13
+    },
+    {
+      "text": "Sunshine",
+      "x": 25,
+      "y": 98,
+      "width": 76,
+      "height": 16,
+      "contentWidth": 57.5,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Installed \u00b7 2026.516.143833-4",
+      "x": 109,
+      "y": 98,
+      "width": 257,
+      "height": 16,
+      "contentWidth": 208.4375,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Processes",
+      "x": 25,
+      "y": 123,
+      "width": 76,
+      "height": 16,
+      "contentWidth": 64.6875,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "1 \u00b7 running",
+      "x": 109,
+      "y": 123,
+      "width": 257,
+      "height": 16,
+      "contentWidth": 79.0625,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Firewall",
+      "x": 25,
+      "y": 148,
+      "width": 76,
+      "height": 16,
+      "contentWidth": 57.5,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "27 Sunshine rules",
+      "x": 109,
+      "y": 148,
+      "width": 257,
+      "height": 16,
+      "contentWidth": 122.1875,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Autostart",
+      "x": 25,
+      "y": 173,
+      "width": 76,
+      "height": 16,
+      "contentWidth": 64.6875,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Ready",
+      "x": 109,
+      "y": 173,
+      "width": 257,
+      "height": 16,
+      "contentWidth": 35.9375,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Unit",
+      "x": 25,
+      "y": 214,
+      "width": 76,
+      "height": 16,
+      "contentWidth": 28.75,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "app-dev.lizardbyte.app.Sunshine.service \u00b7 disabled",
+      "x": 109,
+      "y": 198,
+      "width": 257,
+      "height": 48,
+      "contentWidth": 251.5625,
+      "contentHeight": 48,
+      "font": 12
+    },
+    {
+      "text": "Display",
+      "x": 25,
+      "y": 255,
+      "width": 76,
+      "height": 16,
+      "contentWidth": 50.3125,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Capture detected",
+      "x": 109,
+      "y": 255,
+      "width": 257,
+      "height": 16,
+      "contentWidth": 115,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Encoder",
+      "x": 25,
+      "y": 280,
+      "width": 76,
+      "height": 16,
+      "contentWidth": 50.3125,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "libx264 \u00b7 software",
+      "x": 109,
+      "y": 280,
+      "width": 257,
+      "height": 16,
+      "contentWidth": 129.375,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Admin",
+      "x": 25,
+      "y": 305,
+      "width": 76,
+      "height": 16,
+      "contentWidth": 35.9375,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Create your login",
+      "x": 109,
+      "y": 305,
+      "width": 257,
+      "height": 16,
+      "contentWidth": 122.1875,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Paired",
+      "x": 25,
+      "y": 330,
+      "width": 76,
+      "height": 16,
+      "contentWidth": 43.125,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "0 device(s)",
+      "x": 109,
+      "y": 330,
+      "width": 257,
+      "height": 16,
+      "contentWidth": 79.0625,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Stream",
+      "x": 25,
+      "y": 355,
+      "width": 76,
+      "height": 16,
+      "contentWidth": 43.125,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Waiting for Moonlight",
+      "x": 109,
+      "y": 355,
+      "width": 257,
+      "height": 16,
+      "contentWidth": 150.9375,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Address",
+      "x": 25,
+      "y": 380,
+      "width": 76,
+      "height": 16,
+      "contentWidth": 50.3125,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "192.168.124.105",
+      "x": 109,
+      "y": 380,
+      "width": 257,
+      "height": 16,
+      "contentWidth": 107.8125,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "LAN",
+      "x": 25,
+      "y": 405,
+      "width": 76,
+      "height": 16,
+      "contentWidth": 21.5625,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "192.168.124.105",
+      "x": 109,
+      "y": 405,
+      "width": 257,
+      "height": 16,
+      "contentWidth": 107.8125,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Get connected",
+      "x": 402,
+      "y": 71,
+      "width": 342,
+      "height": 18,
+      "contentWidth": 101.359375,
+      "contentHeight": 18,
+      "font": 13
+    },
+    {
+      "text": "192.168.124.105",
+      "x": 402,
+      "y": 98,
+      "width": 342,
+      "height": 26,
+      "contentWidth": 170.859375,
+      "contentHeight": 26,
+      "font": 19
+    },
+    {
+      "text": "First pairing: iPad and computer on the same network.",
+      "x": 402,
+      "y": 133,
+      "width": 342,
+      "height": 32,
+      "contentWidth": 316.25,
+      "contentHeight": 32,
+      "font": 12
+    },
+    {
+      "text": "Install Moonlight",
+      "x": 402,
+      "y": 307,
+      "width": 155,
+      "height": 16,
+      "contentWidth": 122.1875,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Scan to copy address",
+      "x": 569,
+      "y": 307,
+      "width": 175,
+      "height": 16,
+      "contentWidth": 143.75,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Add PC (+): paste the address. Tap the PC; enter its PIN on the PIN page here.",
+      "x": 402,
+      "y": 332,
+      "width": 342,
+      "height": 32,
+      "contentWidth": 301.875,
+      "contentHeight": 32,
+      "font": 12
+    },
+    {
+      "text": "Mouse and keyboard required for Beam; Bluetooth is fine.",
+      "x": 402,
+      "y": 373,
+      "width": 342,
+      "height": 32,
+      "contentWidth": 337.8125,
+      "contentHeight": 32,
+      "font": 12
+    },
+    {
+      "text": "Moonlight: 1920x1080 \u00b7 60fps \u00b7 20 Mbps.",
+      "x": 402,
+      "y": 414,
+      "width": 342,
+      "height": 16,
+      "contentWidth": 280.3125,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Make it happen",
+      "x": 780,
+      "y": 71,
+      "width": 336,
+      "height": 18,
+      "contentWidth": 109.15625,
+      "contentHeight": 18,
+      "font": 13
+    },
+    {
+      "text": "Create Sunshine login",
+      "x": 873,
+      "y": 107,
+      "width": 150.9375,
+      "height": 16,
+      "contentWidth": 150.9375,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Install",
+      "x": 845,
+      "y": 150,
+      "width": 50.3125,
+      "height": 16,
+      "contentWidth": 50.3125,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Repair",
+      "x": 1020,
+      "y": 150,
+      "width": 43.125,
+      "height": 16,
+      "contentWidth": 43.125,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Ports",
+      "x": 852,
+      "y": 192,
+      "width": 35.9375,
+      "height": 16,
+      "contentWidth": 35.9375,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Admin",
+      "x": 1024,
+      "y": 192,
+      "width": 35.9375,
+      "height": 16,
+      "contentWidth": 35.9375,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "PIN page",
+      "x": 841,
+      "y": 234,
+      "width": 57.5,
+      "height": 16,
+      "contentWidth": 57.5,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Remove",
+      "x": 1020,
+      "y": 234,
+      "width": 43.125,
+      "height": 16,
+      "contentWidth": 43.125,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Install, repair and removal open a terminal if your computer password is needed.",
+      "x": 780,
+      "y": 268,
+      "width": 336,
+      "height": 32,
+      "contentWidth": 330.625,
+      "contentHeight": 32,
+      "font": 12
+    },
+    {
+      "text": "Automatic idle is held only during a live stream. Manual locking still hides the desktop.",
+      "x": 780,
+      "y": 309,
+      "width": 336,
+      "height": 48,
+      "contentWidth": 294.6875,
+      "contentHeight": 48,
+      "font": 12
+    },
+    {
+      "text": "Set up this computer",
+      "x": 12,
+      "y": 466,
+      "width": 1104,
+      "height": 18,
+      "contentWidth": 155.9375,
+      "contentHeight": 18,
+      "font": 13
+    },
+    {
+      "text": "This computer's installation is complete.",
+      "x": 12,
+      "y": 493,
+      "width": 982,
+      "height": 16,
+      "contentWidth": 294.6875,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Create your Sunshine login, then pair Moonlight on the iPad.",
+      "x": 12,
+      "y": 514,
+      "width": 982,
+      "height": 16,
+      "contentWidth": 431.25,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Check again",
+      "x": 1023,
+      "y": 504,
+      "width": 79.0625,
+      "height": 16,
+      "contentWidth": 79.0625,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Beam \u00b7 Sunshine \u2192 Moonlight",
+      "x": 0,
+      "y": 554,
+      "width": 742,
+      "height": 16,
+      "contentWidth": 194.0625,
+      "contentHeight": 16,
+      "font": 12
+    },
+    {
+      "text": "Tab / arrows to move \u00b7 Enter to select \u00b7 Esc to close",
+      "x": 747,
+      "y": 554,
+      "width": 381,
+      "height": 16,
+      "contentWidth": 380.9375,
+      "contentHeight": 16,
+      "font": 12
+    }
+  ]
+}

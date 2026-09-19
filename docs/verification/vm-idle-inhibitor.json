@@ -1,0 +1,15 @@
+{
+  "before": {
+    "idle": true,
+    "active": false
+  },
+  "streaming_status": true,
+  "during": {
+    "idle": false,
+    "active": true
+  },
+  "after": {
+    "idle": true,
+    "active": false
+  }
+}

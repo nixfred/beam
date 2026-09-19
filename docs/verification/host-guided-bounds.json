@@ -1,0 +1,26 @@
+{
+  "opened": true,
+  "expert": false,
+  "step": 2,
+  "screen": [
+    5120,
+    1440
+  ],
+  "card": [
+    3791,
+    35,
+    1160,
+    523
+  ],
+  "available": [
+    5110,
+    1400
+  ],
+  "content": [
+    1128,
+    491,
+    491
+  ],
+  "fits": true,
+  "outside": []
+}

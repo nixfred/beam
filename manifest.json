@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "id": "nixfred.beam",
+  "name": "Beam",
+  "version": "1.0.0",
+  "author": "nixfred",
+  "license": "MIT",
+  "description": "Your Omarchy desktop on your iPad. Guided setup, instant connection details, and a clear view of what is ready.",
+  "kinds": ["service", "bar-widget"],
+  "entryPoints": {"service": "Service.qml", "barWidget": "BarWidget.qml"},
+  "barWidget": {
+    "displayName": "Beam",
+    "description": "Stream your desktop to Moonlight on iPad. Click to set up or connect.",
+    "category": "Network",
+    "aliases": ["beam", "ipad", "stream", "sunshine", "moonlight", "desktop"],
+    "allowMultiple": false,
+    "defaultSection": "right",
+    "defaults": {"refreshSec": 5, "holdAwake": true, "showLabel": true},
+    "schema": [
+      {"key": "refreshSec", "type": "integer", "label": "Refresh interval (seconds)", "description": "Beam checks every two seconds while streaming or making changes.", "min": 2, "max": 120, "defaultValue": 5},
+      {"key": "holdAwake", "type": "boolean", "label": "Keep this session awake during a stream", "description": "Temporarily inhibits automatic idle and locking while streaming. A manual lock still needs to be unlocked at this computer.", "defaultValue": true},
+      {"key": "showLabel", "type": "boolean", "label": "Show the status beside the dot", "description": "Displays set up, iPad or live beside the Beam dot.", "defaultValue": true}
+    ]
+  },
+  "repository": "https://github.com/nixfred/beam"
+}
