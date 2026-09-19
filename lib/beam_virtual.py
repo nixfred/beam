@@ -128,7 +128,10 @@ class VirtualDisplay:
         width, height, fps = fixed or requested
         applied = dict(width=width, height=height, pictureWidth=width, pictureHeight=height,
                        mode=f"{width}x{height}@{min(fps, 60)}", refreshRate=min(fps, 60),
-                       scale=readable_scale(width, height), x=source["x"], y=source["y"], transform=0, exact=True)
+                       # Honor explicit custom scaling instead of reapplying
+                       # the automatic native-resolution scaling policy.
+                       scale=self.fit.fixed_scale() if fixed else readable_scale(width, height),
+                       x=source["x"], y=source["y"], transform=0, exact=True)
         workspaces = [w for w in self.workspaces() if w["monitor"] == source["name"]]
         session = dict(token=uuid.uuid4().hex, kind="virtual", monitor=OUTPUT,
                        original=self.fit.original(monitor), applied=applied, requested=list(requested),

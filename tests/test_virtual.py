@@ -124,6 +124,37 @@ class NativeTests(unittest.TestCase):
         self.assertIn('Moonlight requests 1920×1080',self.fit.status()['resolutionDetail'])
         with self.assertRaises(DisplayError):self.fit.set_resolution('99999x2064')
 
+    def test_custom_middle_ground_keeps_full_workspace_instead_of_enlarging_text(self):
+        self.fit.set_resolution('1920x1440')
+        session = self.start(1920, 1440)
+        self.assertEqual(session['applied']['scale'], 1)
+        self.assertEqual(self.virtual['width'] / self.virtual['scale'], 1920)
+        self.assertEqual(self.virtual['height'] / self.virtual['scale'], 1440)
+        self.assertIn('100% scale', self.fit.status()['recommendedRes'])
+        self.fit.stop()
+        self.fit.set_resolution('auto')
+        self.assertEqual(self.start()['applied']['scale'], 2)
+
+    def test_native_2732_middle_ground_has_exact_aspect_and_2049_workspace(self):
+        self.fit.set_resolution('2732x2048', 4 / 3)
+        session = self.start(2732, 2048)
+        mode = session['applied']
+        self.assertEqual((mode['width'], mode['height']), (2732, 2048))
+        self.assertEqual((mode['width'] / mode['scale'], mode['height'] / mode['scale']), (2049, 1536))
+        self.assertIn('133% scale', self.fit.status()['recommendedRes'])
+        self.assertTrue(self.fit.matches(dict(mode, scale=1.3333334), mode))
+        self.assertFalse(self.fit.matches(dict(mode, scale=1.5), mode))
+        self.fit.stop()
+        self.assertEqual(self.physical['scale'], 1)
+        self.assertEqual(self.fit.fixed_scale(), 4 / 3)
+
+    def test_invalid_custom_scale_preserves_previous_preference(self):
+        self.fit.set_resolution('2732x2048', 4 / 3)
+        for value in ('nan', 'inf', 'bad', 0, 3, 1.5):
+            with self.subTest(value=value), self.assertRaises(DisplayError):
+                self.fit.set_resolution('2732x2048', value)
+            self.assertEqual(self.fit.fixed_scale(), 4 / 3)
+
     def test_missing_virtual_display_does_not_resize_physical(self):
         self.rows.remove(self.virtual)
         with self.assertRaises(DisplayError):self.start()

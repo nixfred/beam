@@ -164,7 +164,7 @@ At 200%, that gives a 1376×1032 workspace. A 2360×1640 iPad gets 1180×820.
 The virtual display removes the physical monitor's resolution limit, so an
 ultrawide monitor no longer forces a panoramic picture or a low-detail 4:3 fallback.
 
-**Full must be selected on the iPad.** A 720p or fixed 16:9 request still produces
+**Choose Full or a matching custom size on the iPad.** A 720p or fixed 16:9 request still produces
 that shape and can leave borders. Beam reports the actual request and scale;
 it cannot identify a disconnected iPad or change Moonlight's saved setting.
 The local ultrawide can show side borders while mirroring the iPad-shaped desktop.
@@ -186,9 +186,30 @@ sizing and update the stock Desktop tile. This replaces the earlier physical-mod
 fallback. Keep the picture awake is enabled by default and releases afterward.
 
 For an explicitly chosen stream size, the internal helper also supports
-`bin/omarchy-beam set-resolution WIDTHxHEIGHT`. Set the same custom dimensions
-in Moonlight. Use `bin/omarchy-beam set-resolution auto` to return to Full-based
-client sizing. Pinning a size for a different screen shape can introduce borders.
+`bin/omarchy-beam set-resolution WIDTHxHEIGHT`. Custom sizes default to **100% scale**,
+so a 1920×1440 custom size really provides a 1920×1440 desktop workspace.
+Set the same dimensions in **Moonlight → Settings → Resolution → Custom** and
+choose **60 FPS**, then quit the old stream and launch Desktop again.
+
+**For a 4:3 iPad**, 1920×1440 at 100% is a middle ground between an oversized
+720p desktop and tiny text on a 2560-pixel-wide workspace. Other iPad shapes need
+a different height: check the dimensions shown by Full before choosing a custom
+size. A 1920×1440 preset is not a universal border-free setting for every iPad.
+For a **2732×2048 iPad**, keep the exact native picture and choose a middle-ground
+workspace with an explicit scale:
+
+```sh
+bin/omarchy-beam set-resolution 2732x2048 1.3333333333333333
+```
+
+Select **2732×2048 at 60 FPS** in Moonlight, then quit and relaunch Desktop.
+The host retains every native pixel and the exact screen shape, while about
+**133% scaling** gives **2049×1536 logical workspace**. This makes controls
+smaller than the automatic 200% setting without returning to a 16:9 desktop.
+Invalid scales are rejected without changing the previous preference.
+
+Use `bin/omarchy-beam set-resolution auto` to return to native client sizing
+and automatic scaling.
 
 ## One dot tells the story
 
@@ -238,7 +259,7 @@ omarchy plugin remove nixfred.beam
 
 | Verified locally | Evidence |
 | :--- | :--- |
-| **64 regression tests** | Ten backend, nine browser-routing, thirty-eight sizing/recovery, and seven service-state tests. |
+| **67 regression tests** | Ten backend, nine browser-routing, forty-one sizing/recovery, and seven service-state tests. |
 | **Clean VM install and removal** | One running Sunshine after install; zero processes and zero streaming rules after removal. |
 | **No-scroll layouts** | All six guided steps, Expert, long errors, and confirmation at 1280×800; normal views on a 5120×1440 host. |
 | **Dark and light QR codes** | Both codes decoded from captured screens with software. |

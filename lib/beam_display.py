@@ -99,7 +99,26 @@ class DisplayFit:
         return requested_size({"SUNSHINE_CLIENT_" + key.upper(): value.get(key)
                                for key in ("width", "height", "fps")})
 
-    def set_resolution(self, value):
+    @staticmethod
+    def validate_scale(size, value):
+        try:
+            scale = float(value)
+        except (ValueError, TypeError):
+            raise DisplayError("Use a desktop scale between 1 and 2.")
+        if not math.isfinite(scale) or not 1 <= scale <= 2:
+            raise DisplayError("Use a desktop scale between 1 and 2.")
+        width, height = size[0] / scale, size[1] / scale
+        if (not math.isclose(width, round(width), abs_tol=0.00001)
+                or not math.isclose(height, round(height), abs_tol=0.00001)
+                or (scale > 1 and (width < 960 or height < 640))):
+            raise DisplayError("That scale does not fit this custom resolution cleanly.", "Use scale 1 or a scale that produces whole desktop pixels.")
+        return scale
+
+    def fixed_scale(self):
+        size = self.fixed_size()
+        return self.validate_scale(size, load(self.preferences).get("scale", 1)) if size else 1
+
+    def set_resolution(self, value, scale=1):
         with self.lock():
             if value == "auto":
                 self.preferences.unlink(missing_ok=True)
@@ -110,9 +129,10 @@ class DisplayFit:
                 raise DisplayError("Use WIDTHxHEIGHT or auto for the desktop resolution.")
             target = requested_size({"SUNSHINE_CLIENT_WIDTH": match[1],
                                      "SUNSHINE_CLIENT_HEIGHT": match[2], "SUNSHINE_CLIENT_FPS": 60})
+            scale = self.validate_scale(target, scale)
             if not self.virtual.enabled() and not choose_mode(self.monitor(), target)["exact"]:
                 raise DisplayError("This display does not support that fixed resolution.", "Choose an advertised display mode. The previous setting was kept.")
-            save(self.preferences, dict(zip(("width", "height", "fps"), target)))
+            save(self.preferences, dict(zip(("width", "height", "fps"), target), scale=scale))
             self.error.unlink(missing_ok=True)
             return target
 
@@ -199,7 +219,7 @@ class DisplayFit:
                 if session.get("kind") == "virtual":
                     detail += f" · {current['scale'] * 100:g}% text"
             if fixed:
-                text = f"Fixed {fixed[0]}×{fixed[1]} · {fixed[2]} fps"
+                text = f"Fixed {fixed[0]}×{fixed[1]} · {self.fixed_scale() * 100:.3g}% scale"
                 detail = f"Set Moonlight to {setting}. Open Beam Desktop."
                 if active and len(requested) == 3:
                     detail = f"Desktop {current.get('pictureWidth', current['width'])}×{current.get('pictureHeight', current['height'])}. "
@@ -271,8 +291,10 @@ class DisplayFit:
 
     @staticmethod
     def matches(current, expected):
-        return (current.get("width"), current.get("height"), current.get("x"), current.get("y"), current.get("scale"), current.get("transform", 0)) == (
-            expected["width"], expected["height"], expected["x"], expected["y"], expected["scale"], expected.get("transform", 0)) and abs(float(current.get("refreshRate", 0)) - expected["refreshRate"]) < 0.1
+        return ((current.get("width"), current.get("height"), current.get("x"), current.get("y"), current.get("transform", 0)) == (
+            expected["width"], expected["height"], expected["x"], expected["y"], expected.get("transform", 0))
+            and math.isclose(float(current.get("scale", 0)), expected["scale"], rel_tol=0, abs_tol=0.00001)
+            and abs(float(current.get("refreshRate", 0)) - expected["refreshRate"]) < 0.1)
 
     def restore(self, session, force=False):
         if not session:
@@ -314,7 +336,7 @@ class DisplayFit:
                 raise DisplayError("The fixed desktop resolution is no longer supported.", "Choose another supported fixed mode or set the resolution back to auto.")
             applied = dict(original, **chosen)
             if fixed:
-                applied["scale"] = 1
+                applied["scale"] = self.fixed_scale()
             if applied["width"] / applied["scale"] < 960 or applied["height"] / applied["scale"] < 640:
                 applied["scale"] = 1
             session = dict(token=uuid.uuid4().hex, monitor=monitor["name"], original=original,

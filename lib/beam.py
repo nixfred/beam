@@ -790,8 +790,8 @@ def main(argv=None):
             beam.display.virtual.prepare()
             data = result(True, action, "The iPad capture display is ready.")
         elif action == "set-resolution":
-            fixed = beam.display.set_resolution(args[0] if args else "")
-            message = f"Desktop pinned to {fixed[0]}×{fixed[1]} at {fixed[2]} FPS." if fixed else "Desktop sizing follows Moonlight again."
+            fixed = beam.display.set_resolution(args[0] if args else "", args[1] if len(args) > 1 else 1)
+            message = f"Desktop pinned to {fixed[0]}×{fixed[1]} at {fixed[2]} FPS and {beam.display.fixed_scale() * 100:.3g}% scale." if fixed else "Desktop sizing follows Moonlight again."
             detail = f"Set Moonlight Custom to {fixed[0]}×{fixed[1]}, then quit and relaunch the desktop." if fixed else "Choose Full in Moonlight, then quit and relaunch the desktop."
             data = result(True, action, message, detail)
         elif action == "stream-start":

@@ -157,7 +157,7 @@ advertised, documented to users, or reachable except through the panel.
 | `ports` | reopens the firewall ports using the stock installer's own function |
 | `admin` | opens the Sunshine admin page |
 | `pin` | opens the admin page's PIN tab |
-| `set-resolution WIDTHxHEIGHT\|auto` | pins a validated picture size, or resumes client-sized selection; Moonlight must request matching dimensions |
+| `set-resolution WIDTHxHEIGHT\|auto [scale]` | pins a validated picture size, or resumes client-sized selection; Moonlight must request matching dimensions |
 | `prepare-display` | creates the named virtual capture display before Sunshine starts; native pixels and readable scaling are applied by the stream hooks |
 | `qr <text>` | writes a QR png, prints its path, caches by content |
 | `hold on\|off\|auto` | holds the session awake, or gives idling back |
@@ -466,3 +466,10 @@ physical layout changes. Keep recovery state when a source monitor is missing.
 The idle capture output uses a named empty workspace away from physical screens.
 The helper validates actual compositor modes and mirrors after applying them.
 Physical iPad acceptance must verify Full negotiation, readability and input.
+
+Explicit custom sizes default to scale 1: the selected dimensions define the
+logical workspace as well as the capture pixels. An optional scale from 1 to 2
+must produce whole logical pixels; 2732x2048 at 4/3 gives 2049x1536. Preserve
+that preference across sessions and allow compositor float rounding on readback. Do not enlarge their text with the
+automatic native-resolution scaling policy. Moonlight must request matching
+custom dimensions, chosen for the actual iPad aspect ratio.

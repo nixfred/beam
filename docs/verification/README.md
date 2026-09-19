@@ -22,10 +22,14 @@ documentation address, supplied to the UI before native capture.
   the unmodified Desktop tile, preservation of customized/ambiguous desktop apps,
   fixed-mode persistence, a 720p client mismatch, scale restoration, returning to
   automatic sizing, and refusal to replace an unavailable fixed mode with a smaller one.
-- Eleven additional native-display regressions cover iPad pixel dimensions and readable
+- Fourteen additional native-display regressions cover iPad pixel dimensions and readable
   scaling, exact sizing independent of EDID, durable rollback, failed recovery,
   manual changes, unplugged source recovery, newly opened workspaces, multiple
-  source selection, disabled laptop panels, fixed native sizes and missing capture outputs.
+  source selection, disabled laptop panels, fixed native sizes, missing capture outputs, and a 1920x1440 custom workspace
+  staying at 100% scale while auto mode retains its native scaling policy.
+  Explicit 4/3 scaling at 2732x2048 gives 2049x1536 logical pixels, survives
+  restoration, tolerates compositor float precision, and rejects invalid
+  scales without overwriting the saved preference.
 - Seven service-state tests cover stale/malformed status, action queues,
   terminal progress, error recovery, and idle-inhibitor eligibility.
 - The Omarchy manifest validator and whitespace checks pass.
@@ -115,6 +119,17 @@ login and one paired iPad, and the native capture output. An idle-host synthetic
 2360x1640 request applied at scale 2 and restored the original 5120x1440 physical
 layout. The earlier 2560x1440 pin was removed. These compositor tests do not
 substitute for a new physical iPad connection using Full.
+
+## Custom middle-ground follow-up
+
+The user identified the iPad size as 2732x2048. Live compositor verification on
+the host applied that exact pixel size at 1.3333334 reported scale, producing a
+2049x1536 logical workspace. The original physical mode and layout restored,
+and the 2732x2048, 60 FPS, 4/3-scale preference is saved for subsequent streams.
+A 1920x1440 custom-size check also confirmed a full 1920x1440 workspace at scale
+1. These checks used synthetic client dimensions; the next physical connection
+must request 2732x2048 to verify final appearance. The last observed physical
+client had still requested 1280x720.
 
 ## Remaining acceptance
 
