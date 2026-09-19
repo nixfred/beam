@@ -55,10 +55,12 @@ shell script with a GUI bolted on", start again.
 2. **Inferring the encoder from a DRM device.** virtio-gpu exposes `/dev/dri/renderD128` and
    cannot encode a single frame. The only permitted source is Sunshine's own
    `Found H.264 encoder:` log line. This is a correctness rule, not a style preference.
-3. **A page that scrolls.** No page-level scroller in either panel mode. One exception, the
-   log box in expert mode, which scrolls inside itself while the panel stays still. Width is
-   the remedy, never height. Screenshot both modes at real window size and read the bottom
-   edge; clipping is worse than scrolling because nothing tells you rows are missing.
+3. **Information that requires scrolling.** No scroller in either panel mode or any
+   subsection, including action results. Show a complete, concise action report instead of
+   a scrolling log. Use width and grouped columns; do not clip, hide overflow behind tabs,
+   or make text unreadable. Screenshot both modes on the host and at 1280x800 logical
+   resolution, including errors and confirmations. Inspect every edge. Follow the live
+   plugin references in `docs/style-reference.md`.
 4. **Touching a password.** Never handle a sudo password: the one root step opens a terminal
    the human types into. Never create, store or read the Sunshine admin password: detect only
    that a `username` line exists in `sunshine.conf`.

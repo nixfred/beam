@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Internal plugin entry point. Keep it beside the plugin; never install on PATH.
+set -eu
+exec python3 "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)/lib/beam.py" "$@"

@@ -296,22 +296,37 @@ One toggle in the header. Two dense columns, everything visible at once:
 
 - **Left: state.** Twelve rows, each a dot plus key plus value: Sunshine, processes, firewall,
   autostart, unit, display, encoder, admin, paired, streaming, address, LAN.
-- **Right: do it.** Six buttons (Install, Repair, Ports, Admin, PIN page, Remove), then a log
-  box. Remove asks first and names exactly what it destroys, including that paired iPads will
-  need pairing again.
+- **Right: do it.** Six buttons (Install, Repair, Ports, Admin, PIN page, Remove), then a
+  compact action report showing current progress, the result, and any actionable error in
+  full. Remove asks first and names exactly what it destroys, including that paired iPads
+  will need pairing again.
 
 ### 7.4 Law 17: nothing scrolls
 
-**No page-level scroller anywhere, in either mode.** Not a `Flickable`, not a `ScrollView`
-around the body. Guided mode fits because it shows one step at a time on a fixed-height stage,
-so the panel does not resize as you move through it. Expert fits because it is two dense
-columns. Width is the remedy, never height.
+**User clarification, 2026-09-19: a plugin must never require scrolling to see its
+information.** This applies to both modes and to every subsection, including action results.
+There is no log-box exception. Do not put a `Flickable` or `ScrollView` around plugin content.
+Guided mode keeps its explicit setup steps, each fitting completely on a fixed-height stage.
+Expert mode shows every status row, control and action result together in grouped columns.
+Width and a better arrangement are the remedies for overflow.
 
-The **one** permitted scroller is the log box in expert mode: a fixed-height box that scrolls
-inside itself while the panel around it stays still.
+Use a concise action report instead of a scrolling terminal transcript. A bounded diagnostic
+history may be retained separately for troubleshooting, but an error and its recovery action
+must be readable in the panel without opening that history. Do not silently clip or elide
+required information, hide overflow behind tabs, or shrink text until it is unreadable.
 
-Verify at the real window size and screenshot it. Clipping is worse than scrolling, because
-nothing tells you rows are missing.
+Verify at the real usable screen size and screenshot both modes, including long errors and
+the Remove confirmation. Check every edge. Also verify at 1280x800 logical resolution so a
+layout that fits the host's ultrawide monitor is not mistaken for a portable layout.
+
+### 7.5 Visual references from the running host
+
+The live Lamplight, Burn Bar, Tesla, Detailed Weather and Chronos panels were inspected on
+2026-09-19. Their shared vocabulary is theme-derived colors, thin borders, modest rounded
+corners, compact typography, grouped information and meaningful status animation. Lamplight
+is the control-layout reference; Burn Bar and Tesla are the dense information references.
+Follow the [host style notes](docs/style-reference.md). Screenshots establish the look on
+this host, not small-screen acceptance for Beam.
 
 ## 8. Known broken states Beam must own
 
@@ -352,8 +367,9 @@ suggestions.
 - **Panel content must nest inside `KeyboardPanel`**, with `PanelKeyCatcher` handling close.
 - **A `Slider`'s `value:` binding is destroyed for good by the first drag.** If any slider is
   added later, use a `Binding` gated on `pressed`.
-- **Bound the log string.** Keep the last ~200 lines. An unbounded string on a long-lived shell
-  is a slow leak.
+- **Bound diagnostic history.** Retain at most ~200 lines in memory. The panel presents a
+  complete, concise action report, not a scrolling history. An unbounded string on a
+  long-lived shell is a slow leak.
 - **Do not blur a bar widget.** A blur repaints every frame. A scaled circle at low opacity
   costs nothing and looks the same at 18px.
 
@@ -380,7 +396,9 @@ Beam 1.0 ships when all of these pass **on a machine where Sunshine was never in
 12. Starting a stream turns the bar dot to the accent colour and pulses it. Stopping returns it.
 13. With `holdAwake` on, starting a stream holds the session awake; stopping it gives idling
     back. Confirm with `omarchy toggle idle status` on both sides of the transition.
-14. Neither mode scrolls at the real window size. Screenshot both and read the bottom edge.
+14. All information and controls fit without scrolling, clipping or unreadable text in both
+    modes, on the host and at 1280x800 logical resolution. Include long errors and the Remove
+    confirmation. Screenshot both modes and inspect every edge; no log-box exception.
 15. `undo` leaves `pgrep sunshine` empty and zero `omarchy-sunshine` ufw rules.
 16. No `/home/pi` or any other user-specific path appears anywhere in the plugin.
 

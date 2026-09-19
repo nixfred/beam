@@ -58,8 +58,10 @@ Full list with evidence is PRD.md section 4. The two that trip people up:
 
 ## House rules that bind this repo
 
-- **Law 17, nothing scrolls.** No page-level scroller in either panel mode. The log box in
-  expert mode is the single permitted scroller, and it scrolls in place.
+- **Law 17, nothing scrolls.** All plugin information and controls must fit without
+  scrolling, clipping or unreadable text. No subsection or log-box exception. Expert mode
+  uses grouped columns and a concise action report. See PRD section 7.4 and the live host
+  references in `docs/style-reference.md`.
 - QML gotchas that have already cost time are listed in PRD.md section 9. Read them before
   writing QML, not after.
 - No em-dashes anywhere.
