@@ -1,0 +1,2350 @@
+You are an independent senior reviewer of Beam, a public Omarchy Quickshell plugin streaming the current Linux desktop to an iPad using Sunshine and Moonlight. The user requests a DEEP audit: methods, advice, bug hunt and help. Analyze only supplied repo material. Do not call tools, inspect files, read environment/config, execute commands or edit anything. Give 3000-5000 words of useful engineering review. Do not repeat sensitive host identifiers; supplied examples have been replaced with documentation values. Do not use em-dashes.
+
+Product requirements that supersede stale prototype/spec lines: user assumes an Omarchy machine/session and network are available, Beam is not a network troubleshooting tool. Must work on any Omarchy machine including VMs without machine-specific paths. Expert mode must connect quickly with obvious address, paired/stream state, direct PIN and admin buttons; guided mode must prevent known errors and help install the correct iPad app via QR. Tell user external mouse AND keyboard are required for this workflow and may use Bluetooth, but no Bluetooth setup tutorial. No scrolling, clipping, missing info behind overflow tabs, or tiny text anywhere. Each deliberate guided step fits; Expert shows all operational info together. All password/root prompts stay in native terminal or Sunshine browser, never stored/handled by Beam.
+
+Review architecture, correctness, security and UX. Challenge stale normative claims if Sunshine APIs/config reality conflict. In particular: (1) actual credential existence detection without touching password/hash; (2) paired client counting including root uniqueid ambiguity; (3) cheap current-process streaming/detection without stale logs, rollover, multiple clients; (4) installer and root function extraction, error propagation, concurrency; (5) lifecycle ownership of idle hold after crash/unload/restart including preexisting user stay-awake; (6) QR to App Store versus plain-IP camera behavior, Moonlight iOS add-host deep links and fallback honesty; (7) iPad keyboard/mouse assumptions and Cmd/Super restrictions; (8) conditional tailnet address use without network troubleshooting; (9) first-run steps preventing app install from being skipped; (10) bounded error display/no-scroll 1280x800; (11) meaningful tests with no iPad, honest manual acceptance gates.
+
+Return: ranked findings with severity and precise file/function/line anchors, failure scenario and minimal remedy; proposed production design; first-run and expert happy paths; regression test matrix; facts needing official-source confirmation. Distinguish directly provable code defects from uncertain external claims. Do not invent tests you have not run or claim to browse. Include an integration and release checklist. This is advisory: another agent verifies claims before implementation.
+
+
+===== PRD.md =====
+1: # Beam — PRD
+2: 
+3: **An Omarchy plugin that puts the desktop you are sitting at onto an iPad.**
+4: 
+5: | | |
+6: |---|---|
+7: | Plugin id | `nixfred.beam` |
+8: | Target version | 1.0.0 |
+9: | Builder | Astra6 (`gpt-6-astra`) |
+10: | Author of this PRD | Larry, 2026-09-19, on host-example (Omarchy 4.0.4-1) |
+11: | Repo | `/home/example` → `github.com/nixfred/beam` (public) |
+12: | Licence | MIT |
+13: 
+14: Everything in this document marked **verified** was checked by running it on host-example on
+15: 2026-09-19. Everything marked **unverified** has not been, and must be checked during the
+16: build rather than assumed.
+17: 
+18: ---
+19: 
+20: ## 1. The problem
+21: 
+22: Streaming an Omarchy desktop to an iPad already works. Sunshine sends the picture, Moonlight
+23: on the iPad shows it, and Omarchy ships an installer for Sunshine. What does not exist is any
+24: path through it for a person who has not done it before.
+25: 
+26: Today that person must: know the two pieces of software are called Sunshine and Moonlight,
+27: know Moonlight is an App Store search away among several near-namesakes, run a shell command,
+28: survive an installer that currently dies half-finished, work out that Sunshine needs a login
+29: they must invent, find a web page on a port they have never heard of, click past a certificate
+30: warning, type an IP address on a touch keyboard, type a PIN back on the desktop, and then
+31: discover that the whole thing shows a black screen because the session locked.
+32: 
+33: There is a written runbook for this (`docs/original-runbook.md`). It is accurate and it is
+34: 2,400 words. That is the evidence of the problem, not the solution to it.
+35: 
+36: **Beam replaces the runbook with a plugin.** Install it, click one dot, get a picture on an
+37: iPad.
+38: 
+39: ## 2. Who it is for
+40: 
+41: 1. **The first-timer.** Has installed the plugin and knows nothing else. Must reach a working
+42:    stream without reading anything longer than a sentence at a time. This user is the reason
+43:    the project exists and wins every design argument.
+44: 2. **The repeat user.** Has done this before, is setting up their third machine, and wants one
+45:    screen with everything on it and a button that does the whole job.
+46: 
+47: ## 3. What it is not
+48: 
+49: - **Not a network tool.** Beam assumes the iPad can already reach this machine. It does not
+50:   configure Wi-Fi, Tailscale, routers, VPNs or DNS, and it does not diagnose why they cannot
+51:   see each other. If there is no address, it says so and stops.
+52: - **Not a troubleshooter for arbitrary failure.** It detects and repairs a specific, known set
+53:   of broken states (section 8). Anything else, it reports honestly and does not guess at.
+54: - **Not host-aware.** Beam never asks or cares whether it is on a laptop, a desktop, a VM or a
+55:   server with a monitor hanging off it. If there is an Omarchy session with a display and an
+56:   address, Beam works. There must be no VM-specific, laptop-specific or GPU-specific code path
+57:   anywhere in it.
+58: - **Not a command-line tool.** No user-facing command, no `PATH` entry, no man page, no
+59:   documented invocation. If a reviewer can reasonably describe the deliverable as "a script",
+60:   it has been built wrong.
+61: - **Not a credential holder.** It never creates, stores, transmits or reads back the Sunshine
+62:   admin password, and it never handles a sudo password.
+63: 
+64: ## 4. Verified ground truth
+65: 
+66: These facts were established by running commands on host-example on 2026-09-19. Build against them.
+67: 
+68: **Plugin kinds.** The only valid values are `bar`, `bar-widget`, `menu`, `overlay`, `panel`,
+69: `service`, and a declared kind must have its matching `entryPoints` key or the plugin is
+70: refused (`/usr/bin/omarchy-plugin-validate`, lines 97 to 110). **verified**
+71: 
+72: **Do not use the `menu` kind.** It replaces the entire Omarchy menu rather than adding an item
+73: to it. That is what Omalaunch does, declaring `"clonedFrom": "omarchy.menu"`. Beam must not
+74: take over the user's menu. **verified**
+75: 
+76: **The stock Sunshine installer is broken.** `/usr/bin/omarchy-install-service-sunshine` runs
+77: under `set -e` and calls `systemctl --user enable --now sunshine`. The current package
+78: (`sunshine 2026.516.143833-4.1` in `extra`) ships its unit as
+79: `app-dev.lizardbyte.app.Sunshine.service`. The old name does not exist, so the script exits
+80: there, **before** opening the firewall, installing the admin web app, and adding the Hyprland
+81: autostart line. Every user hits this today. **verified by reading the script and the package.**
+82: 
+83: **The installer's later steps can be reused, not reimplemented.** The script is a set of shell
+84: functions followed by a linear body starting at the line `echo "Installing Sunshine..."`.
+85: Sourcing everything above that line gives you `open_ufw_ports`, `install_admin_webapp` and
+86: `enable_hyprland_autostart` to call directly. Beam must reuse these so that it opens exactly
+87: the ports Omarchy opens and nothing wider. **verified**
+88: 
+89: **Sudo does not survive between SSH invocations without a TTY.** Priming sudo in one command
+90: and relying on the cache in the next fails. Anything needing root must happen inside one root
+91: call. **verified in the field, documented in the runbook.**
+92: 
+93: **A render node does not mean hardware encoding.** The runbook's step 2 says that finding
+94: `/dev/dri/renderD128` means Sunshine will find VAAPI. On a Proxmox guest with `vga: virtio-gl`
+95: that node is virtio-gpu (`1af4:1050`), which has no video encode engine at all, and Sunshine
+96: falls back to `libx264`. **The only honest source is Sunshine's own log line `Found H.264
+97: encoder: <name>`.** Never infer the encoder from the presence of a DRM device. **verified on
+98: the `vm-example` guest.**
+99: 
+100: **`qrencode` 4.1.1-4 is in `extra`.** **verified**
+101: 
+102: **Moonlight on iPadOS is `id1000551566`, "Moonlight Game Streaming" by Diego Waxemberg.**
+103: Confirmed against the iTunes lookup API. The canonical link is
+104: `https://apps.apple.com/app/id1000551566`. Note that the store also lists "Steam Link" and
+105: "VoidLink" for the same search terms, which is exactly why the user must not be told to
+106: search. **verified**
+107: 
+108: **`pgrep -c` and `grep -c` print `0` and exit non-zero when the count is zero.** A
+109: `count=$(pgrep -c x || echo 0)` idiom therefore yields the string `"0\n0"` and every later
+110: arithmetic test on it fails. Capture first, then default. **verified: this bug was written and
+111: then caught by running it.**
+112: 
+113: ## 5. Architecture
+114: 
+115: **What is being built is an Omarchy Quickshell plugin.** It lives in the bar. The entire user
+116: experience is a dot in the bar and a panel that opens when you click it. There is no command
+117: for a user to learn, nothing to type, and nothing in a terminal except the one install step
+118: that needs a password and is deliberately shown to the human.
+119: 
+120: Inside the plugin there is a bash helper. **It is an internal implementation detail, not a
+121: product surface.** It exists because QML is a poor place to shell out from repeatedly and
+122: because a single source of facts keeps the bar dot and the panel honest. A user never sees it,
+123: never runs it, and its name never appears in the interface. Do not design around it as though
+124: it were the product, and do not add user-facing commands to it.
+125: 
+126: With that understood, one rule governs the split: **the helper owns every fact and every
+127: action; the QML only asks and relays.** This is the pattern that made the Lamplight plugin
+128: reliable. The bar dot and the panel can then never tell the user two different stories, and
+129: the logic stays testable without a GUI.
+130: 
+131: ```
+132: manifest.json        kinds: service, bar-widget, panel
+133: BarWidget.qml        the product: one dot in the bar, always visible
+134: BeamPanel.qml        the product: the wizard and the expert screen
+135: Service.qml          holds state, polls the helper, queues actions
+136: QrCode.qml           renders a QR png
+137: bin/omarchy-beam     internal helper. Every fact, every action. Prints JSON.
+138: ```
+139: 
+140: The helper ships **inside the plugin directory**, and the QML resolves its path relative to
+141: itself. It is not installed to `~/bin`, not put on `PATH`, and not documented to users. A
+142: hardcoded `/home/<someone>/bin/...` path works on exactly one machine, and this plugin is for
+143: strangers.
+144: 
+145: ## 6. The internal helper contract
+146: 
+147: `bin/omarchy-beam <command>`, called only by the QML. This section is normative because the
+148: QML depends on every key, not because any of it is a user interface. Nothing here is
+149: advertised, documented to users, or reachable except through the panel.
+150: 
+151: | Command | Does |
+152: |---|---|
+153: | `status` | prints the JSON below, always exit 0 |
+154: | `doctor` | the same facts, human readable, with what to do about each failure |
+155: | `install` | runs Omarchy's installer, then `repair` to finish what it skipped |
+156: | `repair` | fixes any of the known broken states in section 8 |
+157: | `ports` | reopens the firewall ports using the stock installer's own function |
+158: | `admin` | opens the Sunshine admin page |
+159: | `pin` | opens the admin page's PIN tab |
+160: | `qr <text>` | writes a QR png, prints its path, caches by content |
+161: | `hold on\|off\|auto` | holds the session awake, or gives idling back |
+162: | `greet` | fires the one first-run notification, once ever |
+163: | `address` | prints the address to type into Moonlight |
+164: | `undo` | removes Sunshine and everything the plugin added |
+165: 
+166: ### `status` JSON
+167: 
+168: ```json
+169: {
+170:   "installed": false, "version": "", "running": false, "processes": 0,
+171:   "unit": "", "unitEnabled": false,
+172:   "ufwRules": 0, "ufwPresent": true, "autostart": false,
+173:   "adminUp": false, "adminConfigured": false, "adminUrl": "https://localhost:47990",
+174:   "displayFound": false,
+175:   "encoder": "", "encoderKind": "unknown",
+176:   "recommendedRes": "1920x1080 · 60fps", "recommendedBitrate": 20,
+177:   "pairedClients": 0, "streaming": false, "locked": false,
+178:   "address": "100.64.0.10", "addressKind": "tailscale", "lanAddress": "192.0.2.10",
+179:   "nextStep": 2, "ready": false
+180: }
+181: ```
+182: 
+183: Definitions that are not obvious:
+184: 
+185: - `encoderKind` is `hardware` if the encoder name contains vaapi, nvenc, qsv, amf or vt;
+186:   `software` if an encoder was found and is none of those; `unknown` if Sunshine has not said
+187:   yet. Derived from Sunshine's log only (section 4).
+188: - `recommendedRes` and `recommendedBitrate` follow from `encoderKind`: hardware gets
+189:   `2560x1600 · 60fps` at 40 Mbps, software gets `1920x1080 · 60fps` at 20 Mbps.
+190: - `addressKind` is `tailscale` when the address starts `100.`, else `lan`, else `none`. Prefer
+191:   a tailnet address: it keeps working when the iPad leaves the house.
+192: - `streaming` is the last of `CLIENT CONNECTED` / `CLIENT DISCONNECTED` in the Sunshine log.
+193: - `nextStep` is **the single definition of how far the user got**, so that the bar dot, the
+194:   wizard and a notification can never disagree. It returns the lowest unfinished step:
+195:   `2` if not installed, or ports/autostart/running incomplete; `4` if no admin login; `5` if
+196:   nothing is paired; `6` when everything is done.
+197: 
+198: ### Hard rules on the helper
+199: 
+200: - **Never handle a sudo password.** Not on a command line, not in a variable, not on stdin.
+201:   The one command that needs root (`install`) runs in a terminal the human can see and type
+202:   into.
+203: - **Never touch the Sunshine admin password.** Beam detects only that a `username` line exists
+204:   in `sunshine.conf`. It never reads, sets or transmits the password.
+205: - **`status` must be cheap.** It runs every two seconds while a stream is live. Tail the log,
+206:   do not read it whole.
+207: - **`status` must never fail.** Missing files, missing `ufw`, missing `tailscale`, Sunshine not
+208:   installed: all are normal states with a JSON answer, not errors.
+209: 
+210: ### 6.4 Detection recipes
+211: 
+212: These are the exact mechanics. They were established by running them; do not substitute
+213: something that looks equivalent without testing it.
+214: 
+215: **Installed / running / count.** `command -v sunshine`, `pgrep -x sunshine`, and for the count
+216: `n=$(pgrep -cx sunshine 2>/dev/null); printf '%s' "${n:-0}"`. Capture first: see section 4 on
+217: why `|| echo 0` is wrong here.
+218: 
+219: **Which unit the package ships.** Probe both `app-dev.lizardbyte.app.Sunshine.service` and
+220: `sunshine.service` against `systemctl --user list-unit-files`; empty means the package provides
+221: no user unit and the Hyprland autostart line is the only launcher.
+222: 
+223: **Firewall rules.** Count lines matching the comment `omarchy-sunshine` in
+224: `sudo -n ufw status`. Use `-n`: a status check must never block on a password prompt. No `ufw`
+225: at all is a valid state, not a failure.
+226: 
+227: **Autostart.** `grep -Fxq 'o.launch_on_start("sunshine")' ~/.config/hypr/autostart.lua`.
+228: 
+229: **Admin login exists.** A `username` line with a non-empty value in
+230: `~/.config/sunshine/sunshine.conf`. Never read the password field.
+231: 
+232: **Paired clients.** Count objects carrying a `uniqueid` in
+233: `~/.config/sunshine/sunshine_state.json`. Guard the result: if it is not all digits, it is 0.
+234: 
+235: **Encoder.** `grep -aoiE 'Found H\.?264 encoder: *[a-z0-9_]+' ~/.config/sunshine/sunshine.log |
+236: tail -1`, then strip to the name. This is the only permitted source (section 4).
+237: 
+238: **Display captured.** `Found display` or `Found monitor` anywhere in the same log.
+239: 
+240: **Streaming now.** The last line matching `CLIENT (CONNECTED|DISCONNECTED)` in the log, and it
+241: counts as streaming only if it is the CONNECTED one. Tail the log; this runs every two seconds.
+242: 
+243: **Address.** `tailscale ip -4 | head -1` if Tailscale is present, else the `src` field of
+244: `ip -4 route get 1.1.1.1`. Prefer the tailnet address.
+245: 
+246: **Session locked.** `pgrep -x hyprlock`, or `hyprlock` present in `hyprctl -j clients`.
+247: 
+248: **Reusing the stock installer's functions.** Find the line number of the literal line
+249: `echo "Installing Sunshine..."` in `/usr/bin/omarchy-install-service-sunshine`, write
+250: everything above it to a temp file, append a call to the function you want
+251: (`open_ufw_ports`, `install_admin_webapp`, `enable_hyprland_autostart`), and run it. The
+252: firewall one needs root: run it as **one** root call, because the script's inner `sudo ufw`
+253: lines then need no further authentication, and because sudo caching does not survive between
+254: invocations without a TTY (section 4).
+255: 
+256: ## 7. The user experience
+257: 
+258: ### 7.1 Discovery: the part that actually matters
+259: 
+260: A person installs the plugin and is told nothing. Solving that is the product. Three things,
+261: all required:
+262: 
+263: 1. **The bar dot is visible from the moment the plugin is enabled**, greyed, labelled `set up`.
+264:    It is not hidden until configured. A widget that appears only once you have finished setting
+265:    it up cannot help you set it up.
+266: 2. **One notification, once, ever**, four seconds after first load, and only if nothing is set
+267:    up: *"Beam is ready to set up — Click the Beam dot in your bar to stream this desktop to
+268:    your iPad."* The marker lives in the helper's state dir so it cannot fire twice. Per house
+269:    rules a notification must not steal focus, and clicking it must take you there.
+270: 3. **The wizard opens on the first unfinished step**, not always at step 1. Someone who paired
+271:    an iPad yesterday and opens Beam today lands on the last screen, not a tour.
+272: 
+273: ### 7.2 Guided mode: six steps, one thing each
+274: 
+275: The step rail across the top is clickable in both directions, with a tick on finished steps. A
+276: wizard that will not let you go back and look at something is a wizard people fight with.
+277: 
+278: | # | Title | Shows | Done when |
+279: |---|---|---|---|
+280: | 1 | What you need | What Sunshine and Moonlight are, in three cards: an iPad, a few minutes, your password once in a terminal | user clicks Next |
+281: | 2 | This computer | One button that opens a terminal and installs. Five live checks: installed, ports, autostart, running, screen captured. Then an encoder card quoting Sunshine's own log and the settings that follow from it | all five checks green |
+282: | 3 | The iPad app | **A QR code to the App Store page.** The user points the camera. Names Diego Waxemberg so the right app is unmistakable | user clicks Next |
+283: | 4 | Your login | A button that opens the admin page. Says plainly that the user invents this password, that Beam cannot see or recover it, and that the certificate warning is expected | `adminConfigured` |
+284: | 5 | Connect | **A QR code of this machine's address**, plus the address in large monospace. Four numbered steps. A button to the PIN page. A line saying whether this address travels or stops at the front door | `pairedClients > 0` |
+285: | 6 | Watch | Confirmation, plus three cards: the settings to use, that Moonlight sends Cmd as Super, and that Beam holds the session awake | — |
+286: 
+287: **The two QR codes are the single biggest usability win in the product.** They remove the two
+288: worst moments: searching an app store full of near-namesakes, and typing an IP address on a
+289: touch keyboard. QR codes must render on a **white background with a white quiet zone in every
+290: theme.** A themed QR on a dark panel is one a phone camera silently refuses to read, and the
+291: user has no way to find out why.
+292: 
+293: ### 7.3 Expert mode
+294: 
+295: One toggle in the header. Two dense columns, everything visible at once:
+296: 
+297: - **Left: state.** Twelve rows, each a dot plus key plus value: Sunshine, processes, firewall,
+298:   autostart, unit, display, encoder, admin, paired, streaming, address, LAN.
+299: - **Right: do it.** Six buttons (Install, Repair, Ports, Admin, PIN page, Remove), then a
+300:   compact action report showing current progress, the result, and any actionable error in
+301:   full. Remove asks first and names exactly what it destroys, including that paired iPads
+302:   will need pairing again.
+303: 
+304: ### 7.4 Law 17: nothing scrolls
+305: 
+306: **User clarification, 2026-09-19: a plugin must never require scrolling to see its
+307: information.** This applies to both modes and to every subsection, including action results.
+308: There is no log-box exception. Do not put a `Flickable` or `ScrollView` around plugin content.
+309: Guided mode keeps its explicit setup steps, each fitting completely on a fixed-height stage.
+310: Expert mode shows every status row, control and action result together in grouped columns.
+311: Width and a better arrangement are the remedies for overflow.
+312: 
+313: Use a concise action report instead of a scrolling terminal transcript. A bounded diagnostic
+314: history may be retained separately for troubleshooting, but an error and its recovery action
+315: must be readable in the panel without opening that history. Do not silently clip or elide
+316: required information, hide overflow behind tabs, or shrink text until it is unreadable.
+317: 
+318: Verify at the real usable screen size and screenshot both modes, including long errors and
+319: the Remove confirmation. Check every edge. Also verify at 1280x800 logical resolution so a
+320: layout that fits the host's ultrawide monitor is not mistaken for a portable layout.
+321: 
+322: ### 7.5 Visual references from the running host
+323: 
+324: The live Lamplight, Burn Bar, Tesla, Detailed Weather and Chronos panels were inspected on
+325: 2026-09-19. Their shared vocabulary is theme-derived colors, thin borders, modest rounded
+326: corners, compact typography, grouped information and meaningful status animation. Lamplight
+327: is the control-layout reference; Burn Bar and Tesla are the dense information references.
+328: Follow the [host style notes](docs/style-reference.md). Screenshots establish the look on
+329: this host, not small-screen acceptance for Beam.
+330: 
+331: ## 8. Known broken states Beam must own
+332: 
+333: This section is most of the engineering value. Each is a real state a user lands in.
+334: 
+335: | State | How to detect | What Beam does |
+336: |---|---|---|
+337: | Stock installer died half-way | installed, but ports/autostart/running incomplete | `repair` finishes the remaining steps using the installer's own functions |
+338: | Two Sunshines on one display | `processes > 1`, or unit enabled **and** autostart line present | `repair` disables the packaged unit, leaving the autostart line as the single launcher |
+339: | Session locks mid-stream, iPad goes black | `streaming && locked` | Hold the session awake **on the transition into streaming**, release on the transition out |
+340: | Encoder assumed from a DRM node | n/a | Only ever read Sunshine's log, and show the user what it literally said |
+341: | No address at all | `addressKind == "none"` | Say so on step 5 and stop. Do not attempt networking |
+342: 
+343: **The awake-hold is the highest-value single feature in this plugin.** A black screen is the
+344: first row of every Sunshine troubleshooting table ever written, and it is not a Sunshine bug:
+345: the compositor deliberately keeps lock surfaces out of screen capture. Holding the session
+346: awake for exactly as long as an iPad is connected removes the entire class.
+347: 
+348: Implement it as an **edge trigger, not a level check.** Acting on the level would run two
+349: processes a second for as long as someone watches a film. The hold must be released when
+350: streaming stops, and the state marker must survive a shell restart so idling is never left
+351: permanently disabled.
+352: 
+353: ## 9. QML gotchas that will cost a day each
+354: 
+355: Every one of these has already bitten this codebase or a sibling plugin. They are not
+356: suggestions.
+357: 
+358: - **`WidgetButton` has no `contentItem`.** Children go in directly, and `hasVisualContent:
+359:   true` is what tells it something is there despite an empty label.
+360: - **Pointer handlers do not fire reliably inside these panels.** Use `MouseArea`.
+361: - **`Rectangle.border.width` defaults to 1 even when never set.** Pin it to 0 or you get
+362:   hairlines everywhere.
+363: - **Never mutate a QML `var` array in place.** `pending.shift()` returns the item but leaves
+364:   the property holding the original array, so a queue never empties and every action re-runs
+365:   forever. Reassign with `slice()`.
+366: - **Never name a panel file `Panel.qml`** — it collides with the shell's own type.
+367: - **Panel content must nest inside `KeyboardPanel`**, with `PanelKeyCatcher` handling close.
+368: - **A `Slider`'s `value:` binding is destroyed for good by the first drag.** If any slider is
+369:   added later, use a `Binding` gated on `pressed`.
+370: - **Bound diagnostic history.** Retain at most ~200 lines in memory. The panel presents a
+371:   complete, concise action report, not a scrolling history. An unbounded string on a
+372:   long-lived shell is a slow leak.
+373: - **Do not blur a bar widget.** A blur repaints every frame. A scaled circle at low opacity
+374:   costs nothing and looks the same at 18px.
+375: 
+376: ## 10. Acceptance criteria
+377: 
+378: Beam 1.0 ships when all of these pass **on a machine where Sunshine was never installed.**
+379: 
+380: 1. `omarchy-plugin-validate` passes.
+381: 2. With Sunshine absent, `status` returns valid JSON with `nextStep: 2`, exit 0. Verify with
+382:    `jq -e`.
+383: 3. With Sunshine absent, `doctor` runs clean with no shell errors and no `arithmetic syntax
+384:    error`.
+385: 4. Enabling the plugin shows a grey dot labelled `set up`, and fires exactly one notification.
+386:    Enabling it a second time fires none.
+387: 5. Clicking the dot opens the wizard on step 2, not step 1.
+388: 6. Step 2's button opens a visible terminal. The install completes **despite** the stock
+389:    installer's unit bug, and all five checks go green without the user typing another command.
+390: 7. After install, `processes` is exactly 1. Not 0, not 2.
+391: 8. The encoder card quotes the string from Sunshine's log, and the recommendation matches it.
+392: 9. Both QR codes render, and both are readable by a phone camera **in a dark theme and a light
+393:    theme.**
+394: 10. Completing step 4 flips `adminConfigured` without Beam ever seeing the password.
+395: 11. Pairing an iPad flips the step 5 check and auto-advances the wizard to step 6.
+396: 12. Starting a stream turns the bar dot to the accent colour and pulses it. Stopping returns it.
+397: 13. With `holdAwake` on, starting a stream holds the session awake; stopping it gives idling
+398:     back. Confirm with `omarchy toggle idle status` on both sides of the transition.
+399: 14. All information and controls fit without scrolling, clipping or unreadable text in both
+400:     modes, on the host and at 1280x800 logical resolution. Include long errors and the Remove
+401:     confirmation. Screenshot both modes and inspect every edge; no log-box exception.
+402: 15. `undo` leaves `pgrep sunshine` empty and zero `omarchy-sunshine` ufw rules.
+403: 16. No `/home/example` or any other user-specific path appears anywhere in the plugin.
+404: 
+405: ## 11. Out of scope for 1.0, worth doing later
+406: 
+407: - Submitting the PIN from inside the panel instead of deep-linking to the admin page.
+408:   **Unverified whether Sunshine's API allows this without holding the admin credentials.** If
+409:   it costs storing the user's password, it is not worth it and the deep link stays.
+410: - Per-client history, bandwidth graphs, multiple paired devices managed from the panel.
+411: - Android and other Moonlight clients. The QR codes and copy are iPad-specific in 1.0.
+412: 
+413: ## 12. Companion work, tracked separately
+414: 
+415: The stock installer bug (section 4) is upstream Omarchy, not ours, and every Omarchy user hits
+416: it. It gets its own PR against Omarchy that fixes the unit name, independent of this plugin.
+417: Beam still ships its repair path regardless, because users will be on unpatched versions for
+418: months.
+419: 
+420: ## 13. The prototype in this repo
+421: 
+422: `prototype/` holds a working first cut written while this PRD was being drafted: the helper,
+423: four QML files and the manifest. It was removed at one point and then restored on request, so
+424: it is here on purpose.
+425: 
+426: **Its status is reference, not gospel, and the PRD still wins wherever they disagree.** The
+427: build called for is a clean one from this spec: read the prototype to see how something was
+428: done, do not copy it wholesale.
+429: 
+430: The two halves are not equally trustworthy:
+431: 
+432: - **The helper, `prototype/bin/omarchy-beam`, has been run.** Its JSON validates under `jq -e`, `doctor`
+433:   runs clean, and a real bug was found and fixed in it by executing it (the `pgrep -c` issue
+434:   in section 4). Everything it proved is also written down in sections 4, 6 and 6.4, so the
+435:   spec stands alone without it.
+436: - **The QML has never been loaded into a shell.** It is a sketch of the layout and nothing
+437:   more. Treat every line of it as unverified.
+
+===== CLAUDE.md =====
+1: # CLAUDE.md - beam.omarchy
+2: 
+3: > Identity and global operating rules live in `~/.claude/CLAUDE.md`.
+4: > This file is ONLY the context for this project.
+5: 
+6: ## What this is
+7: 
+8: **Beam** (`nixfred.beam`) is an Omarchy plugin that puts the desktop you are sitting at onto
+9: an iPad, using Sunshine to send and Moonlight to show. A guided wizard takes a first-timer
+10: from nothing to a live picture; an expert screen does the whole job in one click.
+11: 
+12: `PRD.md` is the spec and it is normative. **Astra6 (`gpt-6-astra`) builds from it, clean.**
+13: `prototype/` holds a working first cut kept as reference: read it to see how something was
+14: done, do not copy it wholesale. Where anything in this repo disagrees with the PRD, the PRD
+15: wins.
+16: 
+17: ## The rule that shapes everything
+18: 
+19: **Beam does not know or care what kind of machine it is on.** Laptop, desktop, VM, a server
+20: with a monitor hanging off it: if there is an Omarchy session with a display and an address,
+21: Beam works. There must be no VM-specific, laptop-specific or GPU-specific code path anywhere
+22: in it. This project began as a VM-specific runbook and was deliberately widened on
+23: 2026-09-19; do not let host assumptions creep back in.
+24: 
+25: The second rule: **the CLI owns every fact and every action, the QML only asks and relays.**
+26: The bar dot, the wizard and a terminal can then never tell the user three different stories,
+27: and the whole product is testable without a GUI.
+28: 
+29: ## Two things Beam must never do
+30: 
+31: - **Never handle a sudo password.** The one step needing root opens a terminal the human can
+32:   see and type into.
+33: - **Never create, store or read the Sunshine admin password.** It detects only that a
+34:   `username` line exists in `sunshine.conf`.
+35: 
+36: ## Layout
+37: 
+38: ```
+39: PRD.md                  the spec. Normative. Astra6 builds from this.
+40: CLAUDE.md               this file
+41: docs/original-runbook.md  the 2,400-word runbook Beam exists to replace
+42: prototype/              a working first cut. Reference, not gospel.
+43:   bin/omarchy-beam      the CLI. Run, JSON validated, one real bug fixed in it.
+44:   *.qml, manifest.json  never loaded into a shell. A sketch. Unverified.
+45: ```
+46: 
+47: ## Verified on host-example, 2026-09-19
+48: 
+49: Full list with evidence is PRD.md section 4. The two that trip people up:
+50: 
+51: - **The stock Sunshine installer is broken.** `omarchy-install-service-sunshine` runs under
+52:   `set -e` and enables `sunshine.service`, but the package ships
+53:   `app-dev.lizardbyte.app.Sunshine.service`. It dies before the firewall, web app and
+54:   autostart steps. Beam repairs around it; a separate upstream PR fixes it properly.
+55: - **A render node does not mean hardware encoding.** virtio-gpu shows `/dev/dri/renderD128`
+56:   and cannot encode a frame. The only honest source is Sunshine's own
+57:   `Found H.264 encoder:` log line. Never infer it from a DRM device.
+58: 
+59: ## House rules that bind this repo
+60: 
+61: - **Law 17, nothing scrolls.** All plugin information and controls must fit without
+62:   scrolling, clipping or unreadable text. No subsection or log-box exception. Expert mode
+63:   uses grouped columns and a concise action report. See PRD section 7.4 and the live host
+64:   references in `docs/style-reference.md`.
+65: - QML gotchas that have already cost time are listed in PRD.md section 9. Read them before
+66:   writing QML, not after.
+67: - No em-dashes anywhere.
+68: - Any file path quoted to Fred in chat is a full `file:///home/example` URL.
+69: - This repo is **public** (`github.com/nixfred/beam`). Sanitize before every push, and run
+70:   `git remote -v` first.
+
+===== docs/style-reference.md =====
+1: # Beam host style references
+2: 
+3: Inspected on 2026-09-19 through the running Omarchy shell's plugin registry, live panels,
+4: local screenshots and installed QML. The active display was 5120x1440 at scale 1. These
+5: observations establish a visual direction, not proof that every existing plugin fits every
+6: screen. Screenshots remain outside the repository because they contain private host data.
+7: 
+8: ## User requirement
+9: 
+10: Plugins must never require scrolling to see their information. All information and controls
+11: for the displayed plugin view must fit at readable sizes. No internal-scroller exception,
+12: clipped bottom rows, hidden overflow tabs or required text reduced to ellipses. Beam retains
+13: the deliberate guided setup steps from the PRD; each step must fit completely. Its expert
+14: view shows all operational information together.
+15: 
+16: ## Panels inspected live
+17: 
+18: | Reference | Observed treatment | Apply to Beam |
+19: | --- | --- | --- |
+20: | Lamplight, `nixfred.lamplight`, 1.0.0 | Wide, shallow panel; live header; nine mode cards in three columns; full-width brightness and palette rows | Group related controls in visible rows; use horizontal space; put live status in the header |
+21: | Burn Bar, `nixfred.burnbar`, 1.20.0 | Dense dashboard; prominent totals; colored metric cards; side-by-side charts, limits and local-compute readings; compact footer | Give current stream state a clear hierarchy and keep technical facts aligned and simultaneously visible |
+22: | Tesla, `jankeesvw.tesla`, 1.5.0 | Four columns containing a visual summary, controls and compact labeled data sections; complete panel visible on this display | Arrange status, actions and connection details across columns; keep every operational field visible |
+23: | Detailed Weather, `io.github.calebhat.weather`, 1.3.2 | Large current reading; horizontal forecast rows; compact two-column metric cards | Lead with the answer, then organize supporting details into clear groups |
+24: | Chronos, `nixfred.chronos`, 1.0.0 | Day ring and month heading; compact calendar; progress rail and moon detail; restrained accent | Use a simple status motif and meaningful motion without consuming the space needed for information |
+25: 
+26: Weather's current live panel was a compact forecast grid. Its source also contains orbital
+27: effects; do not claim those were active from this inspection. Lamplight's source comments
+28: mention four columns, but the live layout and actual grid use three. Prefer observed behavior
+29: over stale comments.
+30: 
+31: ## Shared visual direction
+32: 
+33: - Use the active shell theme's background, foreground, accent and font. The dark palette
+34:   observed here is a reference, not a set of colors to hardcode. QR codes keep their white
+35:   backing and quiet zone in every theme.
+36: - Use thin outlines, modest corner radii, low-opacity selected fills and restrained dividers.
+37: - Keep headings and labels compact. Align numbers, units and status values; use monospace
+38:   for addresses and technical readouts. Reserve large type for the main state or next action.
+39: - Put related facts in visible sections and columns, with actions near the state they affect.
+40: - Animate state changes and useful live indicators. Existing QML provides references for
+41:   reveals, count transitions and pulses; gate ongoing effects on visibility and relevance.
+42: - Keep the plugin visibly part of the bar and shell, with consistent anchoring and Escape
+43:   dismissal. Keep controls and the bottom edge visible, including during errors.
+44: 
+45: ## Beam layout direction
+46: 
+47: Keep a compact header with the Beam dot, current state and Guided/Expert switch. Guided mode
+48: has its step rail, a stable stage and visible navigation. Expert mode groups all status,
+49: connection details, actions and the complete current action report across the available
+50: width. Do not copy the prototype's scrolling log box.
+51: 
+52: Test both modes with realistic long values, missing dependencies, action errors and the
+53: Remove confirmation. Verify on the real host and at 1280x800 logical resolution before
+54: claiming the no-scroll requirement is met. The existing prototype has not been changed or
+55: visually verified by this style study.
+
+===== prototype/bin/omarchy-beam =====
+1: #!/bin/bash
+2: #
+3: # omarchy-beam - stream this Omarchy session to an iPad, and know whether it works.
+4: #
+5: # This is the whole brain of the Beam plugin. The QML panel and bar widget only
+6: # ask this for JSON and relay button presses back, which is why the bar, the
+7: # wizard and a terminal can never disagree about what is going on.
+8: #
+9: # It deliberately does NOT know or care what kind of machine it runs on. A
+10: # laptop, a desktop and a VM are the same thing to it: an Omarchy session with a
+11: # display, an address, and an iPad somewhere that wants to see it.
+12: #
+13: # Two things it will never do, by design:
+14: #   - handle a sudo password. The install step opens a real terminal and lets
+15: #     the human type it. Nothing here reads, stores or passes one.
+16: #   - create or hold the Sunshine admin login. That is the human's secret.
+17: 
+18: set -uo pipefail
+19: 
+20: SUNSHINE_DIR="$HOME/.config/sunshine"
+21: SUNSHINE_LOG="$SUNSHINE_DIR/sunshine.log"
+22: SUNSHINE_CONF="$SUNSHINE_DIR/sunshine.conf"
+23: STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/omarchy-beam"
+24: CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/omarchy-beam"
+25: ADMIN_URL="https://localhost:47990"
+26: UFW_COMMENT="omarchy-sunshine"
+27: AUTOSTART="$HOME/.config/hypr/autostart.lua"
+28: AUTOSTART_ENTRY='o.launch_on_start("sunshine")'
+29: # The package renamed its unit in 2026.516. The stock Omarchy installer still
+30: # enables the old name under `set -e`, so it dies before the firewall, the web
+31: # app and the autostart line. Beam knows both names and repairs the aftermath.
+32: UNIT_OLD="sunshine.service"
+33: UNIT_NEW="app-dev.lizardbyte.app.Sunshine.service"
+34: 
+35: mkdir -p "$STATE_DIR" "$CACHE_DIR"
+36: 
+37: have() { command -v "$1" >/dev/null 2>&1; }
+38: jesc() { printf '%s' "${1-}" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' -e 's/\t/ /g' | tr -d '\000-\037'; }
+39: jbool() { [[ ${1:-0} == 1 ]] && printf 'true' || printf 'false'; }
+40: 
+41: # ---------------------------------------------------------------- facts
+42: 
+43: sunshine_installed() { have sunshine; }
+44: sunshine_running()   { pgrep -x sunshine >/dev/null 2>&1; }
+45: # pgrep -c prints its count AND exits non-zero when that count is zero, so a
+46: # `|| echo 0` fallback appends a second zero and every arithmetic test downstream
+47: # blows up on "0\n0". Capture, then default.
+48: sunshine_count()     { local n; n=$(pgrep -cx sunshine 2>/dev/null); printf '%s' "${n:-0}"; }
+49: 
+50: sunshine_version() {
+51:   sunshine_installed || return 0
+52:   pacman -Q sunshine 2>/dev/null | awk '{print $2}'
+53: }
+54: 
+55: # Which unit name this package actually ships, if any. Empty means the package
+56: # provides no user unit and the Hyprland autostart line is the only launcher.
+57: sunshine_unit() {
+58:   local u
+59:   for u in "$UNIT_NEW" "$UNIT_OLD"; do
+60:     systemctl --user list-unit-files "$u" >/dev/null 2>&1 &&
+61:       systemctl --user list-unit-files --no-legend "$u" 2>/dev/null | grep -q . && { printf '%s' "$u"; return; }
+62:   done
+63: }
+64: 
+65: # A unit that is enabled AND an autostart line means two Sunshines fighting over
+66: # one display. Beam reports it rather than silently picking a winner.
+67: unit_enabled() {
+68:   local u; u=$(sunshine_unit); [[ -n $u ]] || return 1
+69:   [[ $(systemctl --user is-enabled "$u" 2>/dev/null) == "enabled" ]]
+70: }
+71: 
+72: ufw_rules() {
+73:   local n
+74:   have ufw || { printf '0'; return; }
+75:   n=$(sudo -n ufw status 2>/dev/null | grep -c "$UFW_COMMENT")
+76:   printf '%s' "${n:-0}"
+77: }
+78: 
+79: autostart_ok() { [[ -f $AUTOSTART ]] && grep -Fxq "$AUTOSTART_ENTRY" "$AUTOSTART"; }
+80: 
+81: admin_up() {
+82:   have curl || return 1
+83:   curl -sk --max-time 2 -o /dev/null "$ADMIN_URL" 2>/dev/null
+84: }
+85: 
+86: # The admin username lives in sunshine.conf; the password is a hash we never
+87: # read. Its presence is how we know the human finished the login step.
+88: admin_configured() { [[ -f $SUNSHINE_CONF ]] && grep -qE '^username[[:space:]]*=[[:space:]]*\S' "$SUNSHINE_CONF"; }
+89: 
+90: paired_clients() {
+91:   local f="$SUNSHINE_DIR/sunshine_state.json"
+92:   [[ -f $f ]] || { echo 0; return; }
+93:   local n
+94:   if have jq; then
+95:     n=$(jq -r '[.. | objects | select(has("uniqueid") or has("uniqueID"))] | length' "$f" 2>/dev/null | tail -1)
+96:   else
+97:     n=$(grep -co 'uniqueid' "$f" 2>/dev/null)
+98:   fi
+99:   [[ $n =~ ^[0-9]+$ ]] || n=0
+100:   printf '%s' "$n"
+101: }
+102: 
+103: # What Sunshine itself said it found, rather than what we guess from /dev/dri.
+104: # A virtio render node looks like a GPU and cannot encode a single frame, so
+105: # the only honest answer comes from Sunshine's own log.
+106: encoder() {
+107:   [[ -f $SUNSHINE_LOG ]] || return 0
+108:   grep -aoiE 'Found H\.?264 encoder: *[a-z0-9_]+' "$SUNSHINE_LOG" 2>/dev/null |
+109:     tail -1 | sed -E 's/.*: *//'
+110: }
+111: 
+112: encoder_kind() {
+113:   local e; e=$(encoder)
+114:   case "$e" in
+115:     "")            printf 'unknown' ;;
+116:     *vaapi*|*nvenc*|*qsv*|*amf*|*vt*) printf 'hardware' ;;
+117:     *)             printf 'software' ;;
+118:   esac
+119: }
+120: 
+121: display_found() {
+122:   [[ -f $SUNSHINE_LOG ]] && grep -aqiE 'Found display|Found monitor' "$SUNSHINE_LOG"
+123: }
+124: 
+125: # Last CONNECTED/DISCONNECTED wins. Tail only: the log is append-only and a long
+126: # one would otherwise cost a full read on every two-second poll.
+127: streaming() {
+128:   [[ -f $SUNSHINE_LOG ]] || return 1
+129:   local last
+130:   last=$(grep -aiE 'CLIENT (CONNECTED|DISCONNECTED)' "$SUNSHINE_LOG" 2>/dev/null | tail -1)
+131:   [[ $last == *ONNECTED* && $last != *DISCONNECTED* ]]
+132: }
+133: 
+134: # The address to type into Moonlight. A tailnet address works from anywhere the
+135: # iPad is; the LAN address only works at home. Prefer the one that travels.
+136: address() {
+137:   local ts lan
+138:   if have tailscale; then
+139:     ts=$(tailscale ip -4 2>/dev/null | head -1)
+140:   fi
+141:   lan=$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="src"){print $(i+1); exit}}')
+142:   printf '%s' "${ts:-$lan}"
+143: }
+144: 
+145: address_kind() {
+146:   local a; a=$(address)
+147:   [[ -z $a ]] && { printf 'none'; return; }
+148:   [[ $a == 100.* ]] && printf 'tailscale' || printf 'lan'
+149: }
+150: 
+151: lan_address() {
+152:   ip -4 route get 1.1.1.1 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="src"){print $(i+1); exit}}'
+153: }
+154: 
+155: session_locked() {
+156:   have hyprctl || return 1
+157:   hyprctl -j clients 2>/dev/null | grep -q 'hyprlock' && return 0
+158:   pgrep -x hyprlock >/dev/null 2>&1
+159: }
+160: 
+161: # Which numbered step the wizard should open on. This is the single definition
+162: # of "how far did I get", so the panel, the bar dot and a notification can never
+163: # tell the user three different stories.
+164: next_step() {
+165:   sunshine_installed || { echo 2; return; }
+166:   { [[ $(ufw_rules) -gt 0 ]] || ! have ufw; } && autostart_ok || { echo 2; return; }
+167:   sunshine_running || { echo 2; return; }
+168:   admin_configured || { echo 4; return; }
+169:   [[ $(paired_clients) -gt 0 ]] || { echo 5; return; }
+170:   echo 6
+171: }
+172: 
+173: # ---------------------------------------------------------------- output
+174: 
+175: cmd_status() {
+176:   local enc kind addr akind clients step
+177:   enc=$(encoder); kind=$(encoder_kind); addr=$(address); akind=$(address_kind)
+178:   clients=$(paired_clients); step=$(next_step)
+179:   cat <<EOF
+180: {
+181:   "installed": $(jbool $(sunshine_installed && echo 1 || echo 0)),
+182:   "version": "$(jesc "$(sunshine_version)")",
+183:   "running": $(jbool $(sunshine_running && echo 1 || echo 0)),
+184:   "processes": $(sunshine_count),
+185:   "unit": "$(jesc "$(sunshine_unit)")",
+186:   "unitEnabled": $(jbool $(unit_enabled && echo 1 || echo 0)),
+187:   "ufwRules": $(ufw_rules),
+188:   "ufwPresent": $(jbool $(have ufw && echo 1 || echo 0)),
+189:   "autostart": $(jbool $(autostart_ok && echo 1 || echo 0)),
+190:   "adminUp": $(jbool $(admin_up && echo 1 || echo 0)),
+191:   "adminConfigured": $(jbool $(admin_configured && echo 1 || echo 0)),
+192:   "adminUrl": "$ADMIN_URL",
+193:   "displayFound": $(jbool $(display_found && echo 1 || echo 0)),
+194:   "encoder": "$(jesc "$enc")",
+195:   "encoderKind": "$kind",
+196:   "recommendedRes": "$([[ $kind == hardware ]] && echo '2560x1600 · 60fps' || echo '1920x1080 · 60fps')",
+197:   "recommendedBitrate": $([[ $kind == hardware ]] && echo 40 || echo 20),
+198:   "pairedClients": $clients,
+199:   "streaming": $(jbool $(streaming && echo 1 || echo 0)),
+200:   "locked": $(jbool $(session_locked && echo 1 || echo 0)),
+201:   "address": "$(jesc "$addr")",
+202:   "addressKind": "$akind",
+203:   "lanAddress": "$(jesc "$(lan_address)")",
+204:   "nextStep": $step,
+205:   "ready": $(jbool $([[ $step -ge 6 ]] && echo 1 || echo 0))
+206: }
+207: EOF
+208: }
+209: 
+210: cmd_doctor() {
+211:   local ok="  ok " no="FAIL "
+212:   echo "Beam check on $(hostname)"
+213:   echo
+214:   printf '%s sunshine installed%s\n' "$(sunshine_installed && echo "$ok" || echo "$no")" \
+215:     "$(sunshine_installed && echo " ($(sunshine_version))" || echo "")"
+216:   printf '%s sunshine running (%s process)\n' "$(sunshine_running && echo "$ok" || echo "$no")" "$(sunshine_count)"
+217:   [[ $(sunshine_count) -gt 1 ]] && echo "       two Sunshines are running. Disable the systemd unit: systemctl --user disable $(sunshine_unit)"
+218:   printf '%s firewall rules (%s)\n' "$([[ $(ufw_rules) -gt 0 ]] && echo "$ok" || echo "$no")" "$(ufw_rules)"
+219:   printf '%s hyprland autostart line\n' "$(autostart_ok && echo "$ok" || echo "$no")"
+220:   printf '%s display captured\n' "$(display_found && echo "$ok" || echo "$no")"
+221:   printf '%s encoder: %s (%s)\n' "$([[ -n $(encoder) ]] && echo "$ok" || echo "$no")" "$(encoder || echo none)" "$(encoder_kind)"
+222:   printf '%s admin login created\n' "$(admin_configured && echo "$ok" || echo "$no")"
+223:   printf '%s paired devices: %s\n' "$([[ $(paired_clients) -gt 0 ]] && echo "$ok" || echo "$no")" "$(paired_clients)"
+224:   printf '%s streaming right now\n' "$(streaming && echo "$ok" || echo "  - ")"
+225:   echo
+226:   echo "Address for Moonlight: $(address)  ($(address_kind))"
+227:   if unit_enabled && autostart_ok; then
+228:     echo
+229:     echo "WARNING: the systemd unit is enabled AND the autostart line is present."
+230:     echo "That starts two Sunshines on one display. Run: omarchy-beam repair"
+231:   fi
+232: }
+233: 
+234: # ---------------------------------------------------------------- actions
+235: 
+236: # Everything that needs root runs in a terminal the human can see and type into.
+237: # Beam never takes a password.
+238: cmd_install() {
+239:   echo "Installing Sunshine through Omarchy's own installer."
+240:   echo "You will be asked for your password. Beam never sees it."
+241:   echo
+242:   OMARCHY_PATH=${OMARCHY_PATH:-/usr/share/omarchy} omarchy install service sunshine
+243:   local rc=$?
+244:   echo
+245:   if [[ $rc -ne 0 ]]; then
+246:     echo "The stock installer stopped early (exit $rc)."
+247:     echo "This is the known unit-rename bug. Finishing the remaining steps..."
+248:   fi
+249:   cmd_repair
+250:   echo
+251:   echo "Done. Back to the Beam panel for the next step."
+252: }
+253: 
+254: # Finish or undo whatever the stock installer left half-done, and make sure
+255: # exactly one Sunshine can start.
+256: cmd_repair() {
+257:   local changed=0
+258: 
+259:   if ! sunshine_installed; then
+260:     echo "Sunshine is not installed yet. Run: omarchy-beam install"
+261:     return 1
+262:   fi
+263: 
+264:   # The autostart line is the launcher Omarchy expects; the unit is the one the
+265:   # package ships. Keeping both is the double-Sunshine bug.
+266:   if unit_enabled; then
+267:     echo "Disabling the packaged systemd unit so only one Sunshine starts."
+268:     systemctl --user disable --now "$(sunshine_unit)" >/dev/null 2>&1
+269:     changed=1
+270:   fi
+271: 
+272:   if ! autostart_ok; then
+273:     echo "Adding the Hyprland autostart line."
+274:     mkdir -p "$(dirname "$AUTOSTART")"; touch "$AUTOSTART"
+275:     printf '\n%s\n' "$AUTOSTART_ENTRY" >>"$AUTOSTART"
+276:     changed=1
+277:   fi
+278: 
+279:   if have ufw && [[ $(ufw_rules) -eq 0 ]]; then
+280:     echo "Opening Moonlight's ports. You will be asked for your password."
+281:     beam_open_ports || echo "Firewall step failed. Run 'omarchy-beam ports' to retry."
+282:     changed=1
+283:   fi
+284: 
+285:   if ! sunshine_running; then
+286:     echo "Starting Sunshine."
+287:     setsid -f uwsm-app -- sunshine >/dev/null 2>&1 </dev/null ||
+288:       setsid -f sunshine >/dev/null 2>&1 </dev/null
+289:     sleep 2
+290:     changed=1
+291:   fi
+292: 
+293:   [[ $changed -eq 0 ]] && echo "Nothing to repair."
+294:   return 0
+295: }
+296: 
+297: # Reuse the stock installer's own firewall function rather than hand-rolling
+298: # rules, so Beam opens exactly what Omarchy opens and nothing wider.
+299: beam_open_ports() {
+300:   local src=/usr/bin/omarchy-install-service-sunshine n d
+301:   [[ -f $src ]] || { echo "Omarchy's sunshine installer is missing."; return 1; }
+302:   n=$(grep -nxF 'echo "Installing Sunshine..."' "$src" | cut -d: -f1)
+303:   [[ -n $n ]] || { echo "Cannot read the installer's firewall function."; return 1; }
+304:   d=$(mktemp -d) || return 1
+305:   { head -n $((n - 1)) "$src"; echo open_ufw_ports; } >"$d/ufw.sh"
+306:   chmod 0755 "$d"; chmod 0644 "$d"/*.sh
+307:   # One root call for the whole step: the script's inner "sudo ufw" lines then
+308:   # need no further authentication. Priming sudo and running a subshell does
+309:   # not work over SSH without a TTY, which is how this fails silently.
+310:   sudo env PATH=/usr/bin bash "$d/ufw.sh"
+311:   local rc=$?
+312:   rm -rf -- "$d"
+313:   return $rc
+314: }
+315: 
+316: cmd_ports() { beam_open_ports; }
+317: 
+318: cmd_undo() {
+319:   echo "This removes Sunshine, its firewall rules, its autostart line and the admin web app."
+320:   OMARCHY_PATH=${OMARCHY_PATH:-/usr/share/omarchy} omarchy remove service sunshine
+321:   local u; u=$(sunshine_unit)
+322:   [[ -n $u ]] && systemctl --user disable --now "$u" >/dev/null 2>&1
+323:   rm -f "$STATE_DIR/greeted" "$STATE_DIR/awake-held"
+324:   echo "Done."
+325: }
+326: 
+327: cmd_admin() { beam_open_url "$ADMIN_URL"; }
+328: cmd_pin()   { beam_open_url "$ADMIN_URL/pin"; }
+329: 
+330: beam_open_url() {
+331:   if have omarchy-launch-webapp; then
+332:     setsid -f omarchy-launch-webapp "$1" --ignore-certificate-errors >/dev/null 2>&1 </dev/null
+333:   else
+334:     setsid -f xdg-open "$1" >/dev/null 2>&1 </dev/null
+335:   fi
+336: }
+337: 
+338: # A QR code beats typing an IP address on a touch keyboard, and beats searching
+339: # an app store by name. Cached by content hash: the panel asks for these on
+340: # every open and regenerating is wasted work.
+341: cmd_qr() {
+342:   local text="${1:?usage: omarchy-beam qr <text>}" fg="${2:-000000}" bg="${3:-FFFFFF}"
+343:   have qrencode || { echo "qrencode is not installed" >&2; return 1; }
+344:   local key out
+345:   key=$(printf '%s|%s|%s' "$text" "$fg" "$bg" | cksum | tr -d ' ')
+346:   out="$CACHE_DIR/qr-$key.png"
+347:   [[ -f $out ]] || qrencode -o "$out" -s 8 -m 2 -l M \
+348:     --foreground="$fg" --background="$bg" "$text" 2>/dev/null
+349:   printf '%s' "$out"
+350: }
+351: 
+352: # The single highest-value automation here. A locked or idle session streams a
+353: # black screen, which is the first row of every troubleshooting table ever
+354: # written about Sunshine. Hold the session awake while an iPad is watching, and
+355: # give idling back the moment it stops.
+356: cmd_hold() {
+357:   local want="${1:-auto}" held="$STATE_DIR/awake-held"
+358:   have omarchy || return 0
+359:   export OMARCHY_PATH=${OMARCHY_PATH:-/usr/share/omarchy}
+360:   [[ $want == auto ]] && { streaming && want=on || want=off; }
+361:   case "$want" in
+362:     on)
+363:       [[ -f $held ]] && return 0
+364:       omarchy toggle idle stay-awake >/dev/null 2>&1 && : >"$held"
+365:       omarchy system wake >/dev/null 2>&1
+366:       ;;
+367:     off)
+368:       [[ -f $held ]] || return 0
+369:       omarchy toggle idle allow-idle >/dev/null 2>&1 && rm -f "$held"
+370:       ;;
+371:   esac
+372: }
+373: 
+374: # Fires once, ever, and only when there is genuinely nothing set up. Someone who
+375: # installs a plugin and is then told nothing has no way to discover it.
+376: cmd_greet() {
+377:   local marker="$STATE_DIR/greeted"
+378:   [[ -f $marker ]] && return 0
+379:   [[ $(next_step) -ge 6 ]] && { : >"$marker"; return 0; }
+380:   : >"$marker"
+381:   have omarchy-notification-send &&
+382:     omarchy-notification-send "Beam is ready to set up" \
+383:       "Click the Beam dot in your bar to stream this desktop to your iPad."
+384: }
+385: 
+386: cmd_address() { address; }
+387: 
+388: usage() {
+389:   cat <<'EOF'
+390: omarchy-beam - stream this Omarchy session to an iPad
+391: 
+392:   status [--json]   everything Beam knows, as JSON
+393:   doctor            the same, readable, with what to do about it
+394:   install           install Sunshine and finish what the stock installer skips
+395:   repair            fix a half-finished install, or a double Sunshine
+396:   ports             (re)open Moonlight's firewall ports
+397:   admin             open the Sunshine admin page
+398:   pin               open the admin page's PIN tab
+399:   qr <text>         write a QR png and print its path
+400:   hold on|off|auto  hold the session awake while an iPad is watching
+401:   address           the address to type into Moonlight
+402:   undo              remove Sunshine and everything this added
+403: 
+404: Beam never handles your sudo password and never creates your Sunshine login.
+405: EOF
+406: }
+407: 
+408: case "${1:-}" in
+409:   status)  shift; cmd_status "$@" ;;
+410:   doctor)  shift; cmd_doctor "$@" ;;
+411:   install) shift; cmd_install "$@" ;;
+412:   repair)  shift; cmd_repair "$@" ;;
+413:   ports)   shift; cmd_ports "$@" ;;
+414:   admin)   shift; cmd_admin "$@" ;;
+415:   pin)     shift; cmd_pin "$@" ;;
+416:   qr)      shift; cmd_qr "$@" ;;
+417:   hold)    shift; cmd_hold "$@" ;;
+418:   greet)   shift; cmd_greet "$@" ;;
+419:   address) shift; cmd_address "$@" ;;
+420:   undo)    shift; cmd_undo "$@" ;;
+421:   ""|-h|--help|help) usage ;;
+422:   *) echo "unknown command: $1" >&2; usage >&2; exit 1 ;;
+423: esac
+
+===== prototype/Service.qml =====
+1: import QtQuick
+2: import Quickshell
+3: import Quickshell.Io
+4: 
+5: // Everything Beam knows, from one poll of one CLI.
+6: //
+7: // The CLI in bin/omarchy-beam owns every fact and every action. This service
+8: // only asks it for JSON and relays presses back, so the bar dot, the wizard and
+9: // a terminal can never tell the user three different stories about how far the
+10: // setup got.
+11: //
+12: // Nothing here knows what kind of machine it is on. Laptop, desktop, VM: if
+13: // there is an Omarchy session with a display and an address, Beam works.
+14: Item {
+15:   id: root
+16: 
+17:   property var settings: ({})
+18: 
+19:   // The plugin ships its own CLI. Resolving it relative to this file keeps the
+20:   // plugin portable: a hardcoded /home/<someone>/bin path works on exactly one
+21:   // machine, and this one is meant for strangers.
+22:   readonly property string cli: {
+23:     var dir = Qt.resolvedUrl(".").toString().replace(/^file:\/\//, "").replace(/\/$/, "")
+24:     return dir + "/bin/omarchy-beam"
+25:   }
+26: 
+27:   property bool ready: false
+28:   property bool installed: false
+29:   property bool running: false
+30:   property int processes: 0
+31:   property string unit: ""
+32:   property bool unitEnabled: false
+33:   property int ufwRules: 0
+34:   property bool ufwPresent: true
+35:   property bool autostart: false
+36:   property bool adminUp: false
+37:   property bool adminConfigured: false
+38:   property string adminUrl: "https://localhost:47990"
+39:   property bool displayFound: false
+40:   property string encoder: ""
+41:   property string encoderKind: "unknown"
+42:   property string recommendedRes: "1920x1080 · 60fps"
+43:   property int recommendedBitrate: 20
+44:   property int pairedClients: 0
+45:   property bool streaming: false
+46:   property bool locked: false
+47:   property string address: ""
+48:   property string addressKind: "none"
+49:   property string lanAddress: ""
+50:   property int nextStep: 1
+51:   property bool allReady: false
+52: 
+53:   // Rolling output of the last action, shown in the expert pane's log box.
+54:   property string log: ""
+55:   property bool busy: false
+56: 
+57:   readonly property int refreshSec: {
+58:     var n = parseInt(String(settings && settings.refreshSec !== undefined ? settings.refreshSec : 5), 10)
+59:     return isFinite(n) ? Math.max(2, Math.min(120, n)) : 5
+60:   }
+61:   readonly property bool holdAwake: String(settings && settings.holdAwake !== undefined ? settings.holdAwake : true) !== "false"
+62: 
+63:   // Two Sunshines on one display, or a session that will lock mid-stream, are
+64:   // the two states that look like a broken app and are neither. Name them.
+65:   readonly property string warning: {
+66:     if (installed && processes > 1) return "Two Sunshines are running. Repair fixes it."
+67:     if (installed && unitEnabled && autostart) return "Both launchers are enabled. Repair fixes it."
+68:     if (streaming && locked) return "The session is locked, so the iPad sees a black screen."
+69:     if (installed && running && !displayFound) return "Sunshine has not captured a display yet."
+70:     return ""
+71:   }
+72: 
+73:   readonly property string state: {
+74:     if (!ready) return "checking"
+75:     if (!installed) return "setup"
+76:     if (streaming) return "live"
+77:     if (allReady) return "ready"
+78:     return "setup"
+79:   }
+80: 
+81:   function apply(text) {
+82:     var d
+83:     try { d = JSON.parse(text) } catch (e) { return }
+84:     if (!d) return
+85:     var wasStreaming = root.streaming
+86: 
+87:     installed = !!d.installed
+88:     running = !!d.running
+89:     processes = d.processes || 0
+90:     unit = d.unit || ""
+91:     unitEnabled = !!d.unitEnabled
+92:     ufwRules = d.ufwRules || 0
+93:     ufwPresent = !!d.ufwPresent
+94:     autostart = !!d.autostart
+95:     adminUp = !!d.adminUp
+96:     adminConfigured = !!d.adminConfigured
+97:     adminUrl = d.adminUrl || adminUrl
+98:     displayFound = !!d.displayFound
+99:     encoder = d.encoder || ""
+100:     encoderKind = d.encoderKind || "unknown"
+101:     recommendedRes = d.recommendedRes || recommendedRes
+102:     recommendedBitrate = d.recommendedBitrate || recommendedBitrate
+103:     pairedClients = d.pairedClients || 0
+104:     streaming = !!d.streaming
+105:     locked = !!d.locked
+106:     address = d.address || ""
+107:     addressKind = d.addressKind || "none"
+108:     lanAddress = d.lanAddress || ""
+109:     nextStep = d.nextStep || 1
+110:     allReady = !!d.ready
+111:     ready = true
+112: 
+113:     // Act on the EDGE, not on the level. Calling hold on every poll would run
+114:     // two processes a second for as long as someone is watching a film.
+115:     if (holdAwake && wasStreaming !== root.streaming) run(["hold", root.streaming ? "on" : "off"])
+116:   }
+117: 
+118:   Process {
+119:     id: poll
+120:     command: [root.cli, "status"]
+121:     stdout: StdioCollector { waitForEnd: true; onStreamFinished: root.apply(text) }
+122:   }
+123: 
+124:   // Actions queue rather than drop. A first cut returned early while another
+125:   // action ran, so a second click during an install simply vanished.
+126:   property var pending: []
+127: 
+128:   Process {
+129:     id: act
+130:     stdout: StdioCollector { waitForEnd: true; onStreamFinished: root.append(text) }
+131:     stderr: StdioCollector { waitForEnd: true; onStreamFinished: root.append(text) }
+132:     onRunningChanged: {
+133:       if (!running) { root.busy = false; root.drain(); settle.restart() }
+134:     }
+135:   }
+136: 
+137:   function append(text) {
+138:     if (!text) return
+139:     var t = String(text).trim()
+140:     if (!t) return
+141:     // Keep the tail only: the log box is a fixed height by design and an
+142:     // unbounded string here is a slow leak on a long-lived shell.
+143:     var lines = (root.log ? root.log + "\n" + t : t).split("\n")
+144:     root.log = lines.slice(-200).join("\n")
+145:   }
+146: 
+147:   function drain() {
+148:     if (act.running) return
+149:     var q = root.pending
+150:     if (!q || q.length === 0) return
+151:     // Never mutate a QML var array in place: shift() hands back the item but
+152:     // leaves the property on the original array, so the queue never empties.
+153:     var next = q[0]
+154:     root.pending = q.slice(1)
+155:     act.command = next
+156:     root.busy = true
+157:     act.running = true
+158:   }
+159: 
+160:   function run(args) {
+161:     var cmd = [root.cli].concat(args)
+162:     var q = root.pending.slice(-3)
+163:     q.push(cmd)
+164:     root.pending = q
+165:     drain()
+166:   }
+167: 
+168:   function refresh() { if (!poll.running) poll.running = true }
+169:   function clearLog() { root.log = "" }
+170: 
+171:   function repair()  { append("$ omarchy-beam repair");  run(["repair"]) }
+172:   function ports()   { append("$ omarchy-beam ports");   run(["ports"]) }
+173:   function admin()   { run(["admin"]) }
+174:   function pinPage() { run(["pin"]) }
+175:   function undo()    { append("$ omarchy-beam undo");    run(["undo"]) }
+176: 
+177:   // The install needs root and prints as it goes, so it belongs in a real
+178:   // terminal the human can watch and type a password into. Beam handles no
+179:   // password itself, and a progress bar in a panel would only hide the part
+180:   // that actually needs a person.
+181:   function installInTerminal() {
+182:     append("$ omarchy-beam install   (opened in a terminal)")
+183:     Quickshell.execDetached(["omarchy-launch-floating-terminal-with-presentation",
+184:                              root.cli, "install"])
+185:     installWatch.restart()
+186:   }
+187: 
+188:   // An install takes a while and ends outside our process, so poll faster for a
+189:   // couple of minutes rather than making the user close and reopen the wizard.
+190:   Timer {
+191:     id: installWatch
+192:     interval: 2000; repeat: true; running: false
+193:     property int ticks: 0
+194:     onRunningChanged: if (running) ticks = 0
+195:     onTriggered: { ticks++; root.refresh(); if (ticks > 90) running = false }
+196:   }
+197: 
+198:   Timer { id: settle; interval: 900; onTriggered: root.refresh() }
+199: 
+200:   // Twice as fast while something is live or mid-change, idle otherwise.
+201:   Timer {
+202:     interval: (root.streaming || root.busy ? 2 : root.refreshSec) * 1000
+203:     running: true
+204:     repeat: true
+205:     triggeredOnStart: true
+206:     onTriggered: root.refresh()
+207:   }
+208: 
+209:   // Someone who installs a plugin and is then told nothing has no way to find
+210:   // it. One notification, once, and only when there is genuinely nothing set
+211:   // up. The CLI owns the marker so it cannot fire twice.
+212:   Timer {
+213:     interval: 4000; running: true; repeat: false
+214:     onTriggered: root.run(["greet"])
+215:   }
+216: }
+
+===== prototype/BeamPanel.qml =====
+1: import QtQuick
+2: import QtQuick.Controls
+3: import QtQuick.Layouts
+4: import Quickshell
+5: import Quickshell.Io
+6: import qs.Commons
+7: import qs.Ui
+8: 
+9: // Two ways through the same job.
+10: //
+11: // Guided is for someone who has just installed this and has no idea what
+12: // happens next: one screen, one instruction, one button, and the wizard opens
+13: // on whichever step is actually outstanding rather than always at the start.
+14: //
+15: // Expert is one screen with every fact and every action on it, for someone who
+16: // has done this before and wants the thing done.
+17: //
+18: // Neither mode scrolls. The wizard fits because it shows one step at a time;
+19: // expert fits because it is two dense columns. The only scroller in here is the
+20: // log box, which scrolls inside itself while the panel around it stays still.
+21: Panel {
+22:   id: panel
+23:   moduleName: "nixfred.beam"
+24:   manageIpc: false
+25: 
+26:   required property var widget
+27:   readonly property var svc: widget.svc
+28: 
+29:   readonly property color foreground: widget.bar ? widget.bar.foreground : Color.foreground
+30:   readonly property color dim: Qt.darker(foreground, 1.5)
+31:   readonly property color faint: Util.alpha(foreground, 0.10)
+32:   readonly property string fontFamily: widget.bar ? widget.bar.fontFamily : Style.font.family
+33:   readonly property color good: Color.accent
+34: 
+35:   readonly property int panelWidth: Style.space(1120)
+36: 
+37:   property bool expert: false
+38:   property int step: 1
+39:   // Opening on the first unfinished step is the difference between a wizard and
+40:   // a slideshow. Someone who got as far as pairing yesterday should not have to
+41:   // click through three screens of things they already did.
+42:   property bool stepPinned: false
+43: 
+44:   readonly property string moonlightUrl: "https://apps.apple.com/app/id1000551566"
+45: 
+46:   onOpenedChanged: {
+47:     if (!opened) { stepPinned = false; return }
+48:     if (svc) { svc.refresh(); if (!stepPinned) step = Math.max(1, Math.min(6, svc.nextStep)) }
+49:   }
+50: 
+51:   Connections {
+52:     target: svc
+53:     function onNextStepChanged() {
+54:       // Advance under the user only when they have not taken the wheel, and
+55:       // only forwards. Yanking someone back a step because a poll landed mid
+56:       // action is worse than showing a stale screen for two seconds.
+57:       if (!panel.stepPinned && panel.opened && svc.nextStep > panel.step)
+58:         panel.step = Math.min(6, svc.nextStep)
+59:     }
+60:   }
+61: 
+62:   readonly property var stepTitles: ["", "What you need", "This computer", "The iPad app",
+63:                                      "Your login", "Connect", "Watch"]
+64: 
+65:   function go(n) { step = Math.max(1, Math.min(6, n)); stepPinned = true }
+66: 
+67:   KeyboardPanel {
+68:     id: kpanel
+69:     anchorItem: panel.widget.anchorItem
+70:     owner: panel.widget
+71:     bar: panel.widget.bar
+72:     open: panel.opened
+73:     focusTarget: keyCatcher
+74:     contentWidth: kpanel.fittedContentWidth(panel.panelWidth)
+75:     contentHeight: kpanel.fittedContentHeight(content.implicitHeight, Style.space(640))
+76: 
+77:     PanelKeyCatcher {
+78:       id: keyCatcher
+79:       anchors.fill: parent
+80:       onCloseRequested: panel.widget.close()
+81: 
+82:       ColumnLayout {
+83:         id: content
+84:         width: parent.width
+85:         spacing: Style.space(12)
+86: 
+87:         // ---------------------------------------------------------- header
+88:         RowLayout {
+89:           Layout.fillWidth: true
+90:           spacing: Style.space(10)
+91: 
+92:           Rectangle {
+93:             width: Style.space(14); height: width; radius: width / 2
+94:             border.width: 0
+95:             color: svc && svc.streaming ? panel.good
+96:                  : svc && svc.allReady ? Util.alpha(panel.foreground, 0.75)
+97:                  : Util.alpha(panel.foreground, 0.3)
+98:             Behavior on color { ColorAnimation { duration: 400 } }
+99:           }
+100: 
+101:           Text {
+102:             text: "Beam"
+103:             color: panel.foreground
+104:             font.family: panel.fontFamily
+105:             font.pixelSize: Style.font.subtitle
+106:             font.bold: true
+107:           }
+108: 
+109:           Text {
+110:             text: !svc || !svc.ready ? "checking this machine"
+111:                 : svc.streaming ? "an iPad is watching this desktop"
+112:                 : svc.allReady ? "ready. Open Moonlight on the iPad."
+113:                 : "not set up yet"
+114:             color: panel.dim
+115:             font.family: panel.fontFamily
+116:             font.pixelSize: Style.font.bodySmall
+117:           }
+118: 
+119:           Item { Layout.fillWidth: true }
+120: 
+121:           Text {
+122:             visible: svc && svc.warning !== ""
+123:             text: svc ? svc.warning : ""
+124:             color: panel.foreground
+125:             font.family: panel.fontFamily
+126:             font.pixelSize: Style.font.bodySmall
+127:           }
+128: 
+129:           BeamButton {
+130:             label: panel.expert ? "Guided" : "Expert"
+131:             subtle: true
+132:             onActivated: panel.expert = !panel.expert
+133:           }
+134:         }
+135: 
+136:         Rectangle { Layout.fillWidth: true; height: 1; color: panel.faint; border.width: 0 }
+137: 
+138:         // ------------------------------------------------------ step rail
+139:         // Clickable, because a wizard that will not let you go back and look at
+140:         // something is a wizard people fight with.
+141:         RowLayout {
+142:           visible: !panel.expert
+143:           Layout.fillWidth: true
+144:           spacing: Style.space(6)
+145: 
+146:           Repeater {
+147:             model: 6
+148:             delegate: Rectangle {
+149:               required property int index
+150:               readonly property int n: index + 1
+151:               readonly property bool here: panel.step === n
+152:               readonly property bool done: svc ? svc.nextStep > n : false
+153: 
+154:               Layout.fillWidth: true
+155:               Layout.preferredWidth: 1
+156:               implicitHeight: Style.space(30)
+157:               radius: Style.space(6)
+158:               border.width: here ? 2 : 1
+159:               border.color: here ? panel.good : panel.faint
+160:               color: here ? Util.alpha(panel.good, 0.14)
+161:                    : done ? Util.alpha(panel.foreground, 0.05) : "transparent"
+162: 
+163:               Text {
+164:                 anchors.centerIn: parent
+165:                 text: (done && !here ? "✓  " : n + ".  ") + panel.stepTitles[n]
+166:                 color: here ? panel.foreground : panel.dim
+167:                 font.family: panel.fontFamily
+168:                 font.pixelSize: Style.font.bodySmall
+169:                 font.bold: here
+170:                 elide: Text.ElideRight
+171:               }
+172: 
+173:               MouseArea {
+174:                 anchors.fill: parent
+175:                 cursorShape: Qt.PointingHandCursor
+176:                 onClicked: panel.go(n)
+177:               }
+178:             }
+179:           }
+180:         }
+181: 
+182:         // ------------------------------------------------------- the body
+183:         // One fixed-height stage. Every step draws inside it, so the panel does
+184:         // not jump size as you move through, and nothing ever needs a scrollbar.
+185:         Item {
+186:           visible: !panel.expert
+187:           Layout.fillWidth: true
+188:           implicitHeight: Style.space(330)
+189: 
+190:           // ---- 1. what you need
+191:           ColumnLayout {
+192:             anchors.fill: parent
+193:             visible: panel.step === 1
+194:             spacing: Style.space(10)
+195: 
+196:             BeamHeading { text: "Put this desktop on your iPad" }
+197:             BeamBody {
+198:               text: "Beam sets up two free pieces of software: Sunshine on this machine, which "
+199:                   + "sends the picture, and Moonlight on the iPad, which shows it. It works the "
+200:                   + "same whether this is a laptop, a desktop or a virtual machine."
+201:             }
+202: 
+203:             GridLayout {
+204:               Layout.fillWidth: true
+205:               columns: 3
+206:               columnSpacing: Style.space(10)
+207:               rowSpacing: Style.space(10)
+208: 
+209:               BeamCard { title: "An iPad"; body: "Any iPad running a current iPadOS. A keyboard is optional and works well." }
+210:               BeamCard { title: "A few minutes"; body: "Five, most of it waiting for a package to install." }
+211:               BeamCard { title: "Your password"; body: "Once, in a terminal you can see. Beam never asks for it and never stores it." }
+212:             }
+213: 
+214:             Item { Layout.fillHeight: true }
+215: 
+216:             BeamBody {
+217:               text: "Beam assumes the iPad can already reach this machine. Getting them onto the "
+218:                   + "same network is not something it tries to do for you."
+219:               faded: true
+220:             }
+221:           }
+222: 
+223:           // ---- 2. this computer
+224:           ColumnLayout {
+225:             anchors.fill: parent
+226:             visible: panel.step === 2
+227:             spacing: Style.space(10)
+228: 
+229:             BeamHeading { text: "Set up this computer" }
+230:             BeamBody {
+231:               text: "This installs Sunshine, opens the ports it needs on your local network only, "
+232:                   + "and starts it with your desktop from now on. It opens a terminal so you can "
+233:                   + "watch it and type your password."
+234:             }
+235: 
+236:             RowLayout {
+237:               Layout.fillWidth: true
+238:               spacing: Style.space(8)
+239: 
+240:               BeamCheck { ok: svc ? svc.installed : false; label: "Sunshine installed" }
+241:               BeamCheck { ok: svc ? (svc.ufwRules > 0 || !svc.ufwPresent) : false; label: "Ports open" }
+242:               BeamCheck { ok: svc ? svc.autostart : false; label: "Starts with the desktop" }
+243:               BeamCheck { ok: svc ? svc.running : false; label: "Running now" }
+244:               BeamCheck { ok: svc ? svc.displayFound : false; label: "Screen captured" }
+245:             }
+246: 
+247:             RowLayout {
+248:               Layout.fillWidth: true
+249:               spacing: Style.space(8)
+250: 
+251:               BeamButton {
+252:                 label: svc && svc.installed ? "Run it again" : "Set up this computer"
+253:                 primary: !(svc && svc.installed)
+254:                 onActivated: if (svc) svc.installInTerminal()
+255:               }
+256:               BeamButton {
+257:                 label: "Fix what is missing"
+258:                 visible: svc && svc.installed
+259:                 onActivated: if (svc) svc.repair()
+260:               }
+261:               Item { Layout.fillWidth: true }
+262:               Text {
+263:                 visible: svc && svc.version !== ""
+264:                 text: svc ? svc.version : ""
+265:                 color: panel.dim
+266:                 font.family: panel.fontFamily
+267:                 font.pixelSize: Style.font.bodySmall
+268:               }
+269:             }
+270: 
+271:             Item { Layout.fillHeight: true }
+272: 
+273:             // The encoder question decides what settings to use on the iPad, and
+274:             // it cannot be answered by looking for a GPU: a virtual machine can
+275:             // show a render node that cannot encode a single frame. Sunshine's
+276:             // own log is the only honest source, so it is quoted, not guessed.
+277:             Rectangle {
+278:               Layout.fillWidth: true
+279:               implicitHeight: Style.space(56)
+280:               radius: Style.space(8)
+281:               border.width: 1
+282:               border.color: panel.faint
+283:               color: "transparent"
+284:               visible: svc && svc.installed
+285: 
+286:               RowLayout {
+287:                 anchors.fill: parent
+288:                 anchors.margins: Style.space(10)
+289:                 spacing: Style.space(10)
+290: 
+291:                 ColumnLayout {
+292:                   spacing: 0
+293:                   Text {
+294:                     text: svc && svc.encoderKind === "hardware" ? "Hardware video encoding"
+295:                         : svc && svc.encoderKind === "software" ? "Software video encoding"
+296:                         : "Video encoding not detected yet"
+297:                     color: panel.foreground
+298:                     font.family: panel.fontFamily
+299:                     font.pixelSize: Style.font.body
+300:                     font.bold: true
+301:                   }
+302:                   Text {
+303:                     text: svc && svc.encoder ? "Sunshine reports " + svc.encoder
+304:                         : "Start Sunshine and this fills in from its own log."
+305:                     color: panel.dim
+306:                     font.family: panel.fontFamily
+307:                     font.pixelSize: Style.font.bodySmall
+308:                   }
+309:                 }
+310:                 Item { Layout.fillWidth: true }
+311:                 Text {
+312:                   visible: svc && svc.encoder !== ""
+313:                   text: "Use " + (svc ? svc.recommendedRes : "")
+314:                   color: panel.foreground
+315:                   font.family: panel.fontFamily
+316:                   font.pixelSize: Style.font.bodySmall
+317:                 }
+318:               }
+319:             }
+320:           }
+321: 
+322:           // ---- 3. the iPad app
+323:           RowLayout {
+324:             anchors.fill: parent
+325:             visible: panel.step === 3
+326:             spacing: Style.space(20)
+327: 
+328:             ColumnLayout {
+329:               Layout.fillWidth: true
+330:               spacing: Style.space(10)
+331: 
+332:               BeamHeading { text: "Get Moonlight on the iPad" }
+333:               BeamBody {
+334:                 text: "Point the iPad's camera at this code and tap the banner that appears. It "
+335:                     + "opens Moonlight Game Streaming in the App Store, which is free."
+336:               }
+337:               BeamBody {
+338:                 text: "There are several apps with similar names. The one you want is by Diego "
+339:                     + "Waxemberg. The code goes straight to it, so there is nothing to search for."
+340:                 faded: true
+341:               }
+342:               Item { Layout.fillHeight: true }
+343:               BeamBody { text: "Install it, then come back here."; }
+344:             }
+345: 
+346:             QrCode {
+347:               Layout.alignment: Qt.AlignVCenter
+348:               size: Style.space(200)
+349:               cli: svc ? svc.cli : ""
+350:               text: panel.moonlightUrl
+351:             }
+352:           }
+353: 
+354:           // ---- 4. the login
+355:           ColumnLayout {
+356:             anchors.fill: parent
+357:             visible: panel.step === 4
+358:             spacing: Style.space(10)
+359: 
+360:             BeamHeading { text: "Create your Sunshine login" }
+361:             BeamBody {
+362:               text: "Sunshine keeps its own username and password, which guard the page that "
+363:                   + "approves new devices. You create it, in your browser. Beam does not choose "
+364:                   + "it, does not see it, and cannot recover it, so pick something you will "
+365:                   + "remember or write it down."
+366:             }
+367:             BeamBody {
+368:               text: "Your browser will warn that the page is not trusted. That is expected: the "
+369:                   + "page is on this machine and its certificate is self-signed. Continue past it."
+370:               faded: true
+371:             }
+372: 
+373:             RowLayout {
+374:               Layout.fillWidth: true
+375:               spacing: Style.space(8)
+376:               BeamButton {
+377:                 label: "Open the login page"
+378:                 primary: !(svc && svc.adminConfigured)
+379:                 onActivated: if (svc) svc.admin()
+380:               }
+381:               BeamCheck { ok: svc ? svc.adminConfigured : false; label: "Login created" }
+382:               Item { Layout.fillWidth: true }
+383:               Text {
+384:                 text: svc ? svc.adminUrl : ""
+385:                 color: panel.dim
+386:                 font.family: panel.fontFamily
+387:                 font.pixelSize: Style.font.bodySmall
+388:               }
+389:             }
+390: 
+391:             Item { Layout.fillHeight: true }
+392:           }
+393: 
+394:           // ---- 5. connect
+395:           RowLayout {
+396:             anchors.fill: parent
+397:             visible: panel.step === 5
+398:             spacing: Style.space(20)
+399: 
+400:             ColumnLayout {
+401:               Layout.fillWidth: true
+402:               spacing: Style.space(8)
+403: 
+404:               BeamHeading { text: "Connect the iPad" }
+405: 
+406:               BeamStep { n: 1; text: "Open Moonlight on the iPad and tap the + in the corner." }
+407:               BeamStep { n: 2; text: "Scan this code with the iPad camera, or type the address below." }
+408:               BeamStep { n: 3; text: "Moonlight shows a four digit PIN. Type it on the page this opens." }
+409:               BeamStep { n: 4; text: "Tap this computer in Moonlight, then tap Desktop." }
+410: 
+411:               RowLayout {
+412:                 Layout.fillWidth: true
+413:                 spacing: Style.space(8)
+414: 
+415:                 Rectangle {
+416:                   implicitWidth: addr.implicitWidth + Style.space(20)
+417:                   implicitHeight: Style.space(38)
+418:                   radius: Style.space(6)
+419:                   border.width: 1
+420:                   border.color: panel.faint
+421:                   color: Util.alpha(panel.foreground, 0.04)
+422:                   Text {
+423:                     id: addr
+424:                     anchors.centerIn: parent
+425:                     text: svc && svc.address ? svc.address : "no address"
+426:                     color: panel.foreground
+427:                     font.family: "monospace"
+428:                     font.pixelSize: Style.font.subtitle
+429:                     font.bold: true
+430:                   }
+431:                 }
+432: 
+433:                 BeamButton {
+434:                   label: "Enter the PIN"
+435:                   primary: true
+436:                   onActivated: if (svc) svc.pinPage()
+437:                 }
+438:                 BeamCheck { ok: svc ? svc.pairedClients > 0 : false
+439:                             label: svc && svc.pairedClients > 0
+440:                                    ? svc.pairedClients + " paired" : "none paired" }
+441:               }
+442: 
+443:               Text {
+444:                 // Which address this is matters. A tailnet address keeps working
+445:                 // from a coffee shop; a LAN address stops at the front door.
+446:                 text: svc && svc.addressKind === "tailscale"
+447:                       ? "This is your Tailscale address, so it works from anywhere the iPad has signal."
+448:                       : svc && svc.addressKind === "lan"
+449:                         ? "This is a local network address, so it works while the iPad is on the same network."
+450:                         : "No address found. This machine needs to be on a network."
+451:                 color: panel.dim
+452:                 font.family: panel.fontFamily
+453:                 font.pixelSize: Style.font.bodySmall
+454:                 wrapMode: Text.WordWrap
+455:                 Layout.fillWidth: true
+456:               }
+457: 
+458:               Item { Layout.fillHeight: true }
+459:             }
+460: 
+461:             QrCode {
+462:               Layout.alignment: Qt.AlignVCenter
+463:               size: Style.space(200)
+464:               cli: svc ? svc.cli : ""
+465:               text: svc && svc.address ? svc.address : ""
+466:             }
+467:           }
+468: 
+469:           // ---- 6. watch
+470:           ColumnLayout {
+471:             anchors.fill: parent
+472:             visible: panel.step === 6
+473:             spacing: Style.space(10)
+474: 
+475:             BeamHeading {
+476:               text: svc && svc.streaming ? "Your iPad is watching this desktop"
+477:                                          : "Ready when you are"
+478:             }
+479:             BeamBody {
+480:               text: svc && svc.streaming
+481:                     ? "Everything is working. These settings are worth knowing."
+482:                     : "Setup is finished. Open Moonlight on the iPad, tap this computer, then tap Desktop."
+483:             }
+484: 
+485:             GridLayout {
+486:               Layout.fillWidth: true
+487:               columns: 3
+488:               columnSpacing: Style.space(10)
+489:               rowSpacing: Style.space(10)
+490: 
+491:               BeamCard {
+492:                 title: "Settings to use"
+493:                 body: svc ? svc.recommendedRes + ", around " + svc.recommendedBitrate + " Mbps"
+494:                           : ""
+495:               }
+496:               BeamCard {
+497:                 title: "The keyboard"
+498:                 body: "Moonlight sends Cmd as Super, which is the key Omarchy uses for nearly everything."
+499:               }
+500:               BeamCard {
+501:                 title: "Staying awake"
+502:                 body: svc && svc.holdAwake
+503:                       ? "Beam holds this session awake while the iPad is connected, and lets it idle again after."
+504:                       : "Awake-holding is off, so a locked session will show the iPad a black screen."
+505:               }
+506:             }
+507: 
+508:             Item { Layout.fillHeight: true }
+509: 
+510:             BeamBody {
+511:               text: "To stop, end the stream from Moonlight's own menu. Nothing here needs turning off."
+512:               faded: true
+513:             }
+514:           }
+515:         }
+516: 
+517:         // ------------------------------------------------------ expert mode
+518:         // Everything on one screen, two columns, nothing behind a gesture. The
+519:         // log box is the only thing that scrolls, and it scrolls inside itself.
+520:         RowLayout {
+521:           visible: panel.expert
+522:           Layout.fillWidth: true
+523:           spacing: Style.space(14)
+524: 
+525:           ColumnLayout {
+526:             Layout.fillWidth: true
+527:             Layout.preferredWidth: 1
+528:             Layout.alignment: Qt.AlignTop
+529:             spacing: Style.space(6)
+530: 
+531:             BeamHeading { text: "State" }
+532: 
+533:             BeamRow { k: "Sunshine";   v: svc && svc.installed ? (svc.version || "installed") : "not installed"; ok: svc ? svc.installed : false }
+534:             BeamRow { k: "Processes";  v: svc ? String(svc.processes) : "0"; ok: svc ? svc.processes === 1 : false }
+535:             BeamRow { k: "Firewall";   v: svc ? (svc.ufwPresent ? svc.ufwRules + " rules" : "no ufw") : ""; ok: svc ? (svc.ufwRules > 0 || !svc.ufwPresent) : false }
+536:             BeamRow { k: "Autostart";  v: svc && svc.autostart ? "hyprland" : "missing"; ok: svc ? svc.autostart : false }
+537:             BeamRow { k: "Unit";       v: svc && svc.unit ? (svc.unitEnabled ? svc.unit + " (enabled)" : svc.unit + " (disabled)") : "none"; ok: svc ? !svc.unitEnabled : true }
+538:             BeamRow { k: "Display";    v: svc && svc.displayFound ? "captured" : "not captured"; ok: svc ? svc.displayFound : false }
+539:             BeamRow { k: "Encoder";    v: svc && svc.encoder ? svc.encoder + "  (" + svc.encoderKind + ")" : "unknown"; ok: svc ? svc.encoder !== "" : false }
+540:             BeamRow { k: "Admin";      v: svc && svc.adminConfigured ? "configured" : "not configured"; ok: svc ? svc.adminConfigured : false }
+541:             BeamRow { k: "Paired";     v: svc ? String(svc.pairedClients) : "0"; ok: svc ? svc.pairedClients > 0 : false }
+542:             BeamRow { k: "Streaming";  v: svc && svc.streaming ? "yes" : "no"; ok: svc ? svc.streaming : false; neutral: true }
+543:             BeamRow { k: "Address";    v: svc ? (svc.address + "  (" + svc.addressKind + ")") : ""; ok: svc ? svc.address !== "" : false }
+544:             BeamRow { k: "LAN";        v: svc && svc.lanAddress ? svc.lanAddress : "none"; ok: svc ? svc.lanAddress !== "" : false; neutral: true }
+545:           }
+546: 
+547:           ColumnLayout {
+548:             Layout.fillWidth: true
+549:             Layout.preferredWidth: 1
+550:             Layout.alignment: Qt.AlignTop
+551:             spacing: Style.space(8)
+552: 
+553:             BeamHeading { text: "Do it" }
+554: 
+555:             GridLayout {
+556:               Layout.fillWidth: true
+557:               columns: 3
+558:               columnSpacing: Style.space(6)
+559:               rowSpacing: Style.space(6)
+560: 
+561:               BeamButton { label: "Install";  primary: !(svc && svc.installed); onActivated: if (svc) svc.installInTerminal() }
+562:               BeamButton { label: "Repair";   onActivated: if (svc) svc.repair() }
+563:               BeamButton { label: "Ports";    onActivated: if (svc) svc.ports() }
+564:               BeamButton { label: "Admin";    onActivated: if (svc) svc.admin() }
+565:               BeamButton { label: "PIN page"; onActivated: if (svc) svc.pinPage() }
+566:               BeamButton { label: "Remove";   danger: true; onActivated: confirmRemove.open = true }
+567:             }
+568: 
+569:             // Removing is the one action here that throws work away, so it asks
+570:             // first and says exactly what goes.
+571:             Rectangle {
+572:               id: confirmRemove
+573:               property bool open: false
+574:               visible: open
+575:               Layout.fillWidth: true
+576:               implicitHeight: Style.space(62)
+577:               radius: Style.space(8)
+578:               border.width: 1
+579:               border.color: panel.faint
+580:               color: Util.alpha(panel.foreground, 0.05)
+581: 
+582:               ColumnLayout {
+583:                 anchors.fill: parent
+584:                 anchors.margins: Style.space(8)
+585:                 spacing: Style.space(6)
+586:                 Text {
+587:                   Layout.fillWidth: true
+588:                   text: "Removes Sunshine, its firewall rules, its autostart line and its web app. Paired iPads will need pairing again."
+589:                   color: panel.foreground
+590:                   font.family: panel.fontFamily
+591:                   font.pixelSize: Style.font.bodySmall
+592:                   wrapMode: Text.WordWrap
+593:                 }
+594:                 RowLayout {
+595:                   spacing: Style.space(6)
+596:                   BeamButton { label: "Remove it"; danger: true
+597:                                onActivated: { confirmRemove.open = false; if (svc) svc.undo() } }
+598:                   BeamButton { label: "Keep it"; subtle: true; onActivated: confirmRemove.open = false }
+599:                   Item { Layout.fillWidth: true }
+600:                 }
+601:               }
+602:             }
+603: 
+604:             RowLayout {
+605:               Layout.fillWidth: true
+606:               spacing: Style.space(8)
+607:               Text {
+608:                 text: "Log"
+609:                 color: panel.dim
+610:                 font.family: panel.fontFamily
+611:                 font.pixelSize: Style.font.bodySmall
+612:               }
+613:               Item { Layout.fillWidth: true }
+614:               Text {
+615:                 visible: svc && svc.busy
+616:                 text: "working"
+617:                 color: panel.good
+618:                 font.family: panel.fontFamily
+619:                 font.pixelSize: Style.font.bodySmall
+620:               }
+621:               BeamButton { label: "Clear"; subtle: true; onActivated: if (svc) svc.clearLog() }
+622:             }
+623: 
+624:             // The one scroller in the whole plugin. Fixed height, scrolls in
+625:             // place, the panel around it never moves.
+626:             Rectangle {
+627:               Layout.fillWidth: true
+628:               implicitHeight: Style.space(150)
+629:               radius: Style.space(6)
+630:               border.width: 1
+631:               border.color: panel.faint
+632:               color: Util.alpha(panel.foreground, 0.04)
+633: 
+634:               ScrollView {
+635:                 id: logView
+636:                 anchors.fill: parent
+637:                 anchors.margins: Style.space(8)
+638:                 clip: true
+639: 
+640:                 Text {
+641:                   width: logView.availableWidth
+642:                   text: svc && svc.log ? svc.log : "Nothing run yet."
+643:                   color: svc && svc.log ? panel.foreground : panel.dim
+644:                   font.family: "monospace"
+645:                   font.pixelSize: Style.font.caption
+646:                   wrapMode: Text.Wrap
+647:                   onTextChanged: logView.ScrollBar.vertical.position = 1.0
+648:                 }
+649:               }
+650:             }
+651:           }
+652:         }
+653: 
+654:         Rectangle { Layout.fillWidth: true; height: 1; color: panel.faint; border.width: 0; visible: !panel.expert }
+655: 
+656:         // ---------------------------------------------------------- footer
+657:         RowLayout {
+658:           visible: !panel.expert
+659:           Layout.fillWidth: true
+660:           spacing: Style.space(8)
+661: 
+662:           BeamButton {
+663:             label: "Back"
+664:             subtle: true
+665:             visible: panel.step > 1
+666:             onActivated: panel.go(panel.step - 1)
+667:           }
+668:           Item { Layout.fillWidth: true }
+669:           Text {
+670:             text: "Step " + panel.step + " of 6"
+671:             color: panel.dim
+672:             font.family: panel.fontFamily
+673:             font.pixelSize: Style.font.bodySmall
+674:           }
+675:           BeamButton {
+676:             label: panel.step === 6 ? "Done" : "Next"
+677:             primary: true
+678:             onActivated: panel.step === 6 ? panel.widget.close() : panel.go(panel.step + 1)
+679:           }
+680:         }
+681:       }
+682:     }
+683:   }
+684: 
+685:   // ------------------------------------------------------ small components
+686:   // Inline so the plugin stays four files. Each one exists because the same
+687:   // shape appears three or more times above.
+688: 
+689:   component BeamHeading: Text {
+690:     Layout.fillWidth: true
+691:     color: panel.foreground
+692:     font.family: panel.fontFamily
+693:     font.pixelSize: Style.font.subtitle
+694:     font.bold: true
+695:     wrapMode: Text.WordWrap
+696:   }
+697: 
+698:   component BeamBody: Text {
+699:     property bool faded: false
+700:     Layout.fillWidth: true
+701:     color: faded ? panel.dim : Qt.lighter(panel.dim, 1.15)
+702:     font.family: panel.fontFamily
+703:     font.pixelSize: Style.font.bodySmall
+704:     wrapMode: Text.WordWrap
+705:   }
+706: 
+707:   component BeamStep: RowLayout {
+708:     property int n: 0
+709:     property string text: ""
+710:     Layout.fillWidth: true
+711:     spacing: Style.space(8)
+712: 
+713:     Rectangle {
+714:       width: Style.space(20); height: width; radius: width / 2
+715:       border.width: 1; border.color: panel.faint; color: "transparent"
+716:       Text {
+717:         anchors.centerIn: parent
+718:         text: parent.parent.n
+719:         color: panel.dim
+720:         font.family: panel.fontFamily
+721:         font.pixelSize: Style.font.caption
+722:       }
+723:     }
+724:     Text {
+725:       Layout.fillWidth: true
+726:       text: parent.text
+727:       color: Qt.lighter(panel.dim, 1.15)
+728:       font.family: panel.fontFamily
+729:       font.pixelSize: Style.font.bodySmall
+730:       wrapMode: Text.WordWrap
+731:     }
+732:   }
+733: 
+734:   component BeamCard: Rectangle {
+735:     property string title: ""
+736:     property string body: ""
+737:     Layout.fillWidth: true
+738:     Layout.preferredWidth: 1
+739:     implicitHeight: Style.space(74)
+740:     radius: Style.space(8)
+741:     border.width: 1
+742:     border.color: panel.faint
+743:     color: "transparent"
+744: 
+745:     ColumnLayout {
+746:       anchors.fill: parent
+747:       anchors.margins: Style.space(9)
+748:       spacing: Style.space(2)
+749:       Text {
+750:         text: parent.parent.title
+751:         color: panel.foreground
+752:         font.family: panel.fontFamily
+753:         font.pixelSize: Style.font.body
+754:         font.bold: true
+755:       }
+756:       Text {
+757:         Layout.fillWidth: true
+758:         Layout.fillHeight: true
+759:         text: parent.parent.body
+760:         color: panel.dim
+761:         font.family: panel.fontFamily
+762:         font.pixelSize: Style.font.bodySmall
+763:         wrapMode: Text.WordWrap
+764:         elide: Text.ElideRight
+765:       }
+766:     }
+767:   }
+768: 
+769:   component BeamCheck: RowLayout {
+770:     property bool ok: false
+771:     property string label: ""
+772:     spacing: Style.space(5)
+773: 
+774:     Rectangle {
+775:       width: Style.space(10); height: width; radius: width / 2
+776:       border.width: 0
+777:       color: parent.ok ? panel.good : Util.alpha(panel.foreground, 0.25)
+778:       Behavior on color { ColorAnimation { duration: 300 } }
+779:     }
+780:     Text {
+781:       text: parent.label
+782:       color: parent.ok ? panel.foreground : panel.dim
+783:       font.family: panel.fontFamily
+784:       font.pixelSize: Style.font.bodySmall
+785:     }
+786:   }
+787: 
+788:   component BeamRow: RowLayout {
+789:     property string k: ""
+790:     property string v: ""
+791:     property bool ok: false
+792:     property bool neutral: false
+793:     Layout.fillWidth: true
+794:     spacing: Style.space(8)
+795: 
+796:     Rectangle {
+797:       width: Style.space(8); height: width; radius: width / 2
+798:       border.width: 0
+799:       color: parent.neutral ? Util.alpha(panel.foreground, 0.35)
+800:            : parent.ok ? panel.good : Util.alpha(panel.foreground, 0.25)
+801:     }
+802:     Text {
+803:       Layout.preferredWidth: Style.space(90)
+804:       text: parent.k
+805:       color: panel.dim
+806:       font.family: panel.fontFamily
+807:       font.pixelSize: Style.font.bodySmall
+808:     }
+809:     Text {
+810:       Layout.fillWidth: true
+811:       text: parent.v
+812:       color: panel.foreground
+813:       font.family: panel.fontFamily
+814:       font.pixelSize: Style.font.bodySmall
+815:       elide: Text.ElideRight
+816:     }
+817:   }
+818: 
+819:   component BeamButton: Rectangle {
+820:     property string label: ""
+821:     property bool primary: false
+822:     property bool subtle: false
+823:     property bool danger: false
+824:     signal activated()
+825: 
+826:     implicitWidth: btnText.implicitWidth + Style.space(22)
+827:     implicitHeight: Style.space(30)
+828:     radius: Style.space(6)
+829:     border.width: primary ? 2 : 1
+830:     border.color: primary ? panel.good : panel.faint
+831:     color: primary ? Util.alpha(panel.good, 0.16)
+832:          : hover.hovered ? Util.alpha(panel.foreground, 0.08) : "transparent"
+833: 
+834:     Text {
+835:       id: btnText
+836:       anchors.centerIn: parent
+837:       text: parent.label
+838:       color: parent.subtle ? panel.dim : panel.foreground
+839:       font.family: panel.fontFamily
+840:       font.pixelSize: Style.font.bodySmall
+841:       font.bold: parent.primary
+842:     }
+843: 
+844:     // Pointer handlers do not fire reliably inside these panels. MouseArea is
+845:     // the one that works, and hoverEnabled on it is what drives the hover tint.
+846:     MouseArea {
+847:       id: hover
+848:       property bool hovered: containsMouse
+849:       anchors.fill: parent
+850:       hoverEnabled: true
+851:       cursorShape: Qt.PointingHandCursor
+852:       onClicked: parent.activated()
+853:     }
+854:   }
+855: }
+
+===== prototype/QrCode.qml =====
+1: import QtQuick
+2: import Quickshell
+3: import Quickshell.Io
+4: 
+5: // A QR code the iPad camera can read.
+6: //
+7: // This exists because the two worst moments in this setup are both typing on a
+8: // touch keyboard: finding the right app in a store full of near-namesakes, and
+9: // entering an IP address. A camera does both perfectly in a second.
+10: //
+11: // The PNG is rendered by qrencode through the CLI and cached by content, so
+12: // reopening the wizard costs nothing.
+13: Item {
+14:   id: root
+15:   property string text: ""
+16:   property string cli: ""
+17:   property int size: 160
+18: 
+19:   property string path: ""
+20:   readonly property bool loaded: path !== ""
+21: 
+22:   implicitWidth: size
+23:   implicitHeight: size
+24: 
+25:   onTextChanged: regen()
+26:   onCliChanged: regen()
+27:   Component.onCompleted: regen()
+28: 
+29:   function regen() {
+30:     if (!text || !cli) { path = ""; return }
+31:     gen.command = [cli, "qr", text]
+32:     gen.running = true
+33:   }
+34: 
+35:   Process {
+36:     id: gen
+37:     stdout: StdioCollector {
+38:       waitForEnd: true
+39:       onStreamFinished: {
+40:         var p = String(text).trim()
+41:         root.path = p ? p : ""
+42:       }
+43:     }
+44:   }
+45: 
+46:   // White quiet zone always, in every theme. A QR on a dark themed background
+47:   // with a themed foreground is a QR that phones refuse to read, and the user
+48:   // has no way to know why.
+49:   Rectangle {
+50:     anchors.fill: parent
+51:     radius: 6
+52:     color: "#ffffff"
+53:     border.width: 0
+54:     visible: root.loaded
+55: 
+56:     Image {
+57:       anchors.fill: parent
+58:       anchors.margins: 4
+59:       source: root.loaded ? "file://" + root.path : ""
+60:       fillMode: Image.PreserveAspectFit
+61:       smooth: false
+62:       cache: true
+63:     }
+64:   }
+65: }
+
+===== prototype/BarWidget.qml =====
+1: import QtQuick
+2: import Quickshell
+3: import Quickshell.Io
+4: import qs.Commons
+5: import qs.Ui
+6: 
+7: // A dot that answers one question without being asked: can an iPad watch this
+8: // desktop right now, and is one watching?
+9: //
+10: // Grey with a dot-and-dash means nothing is set up yet, and that is the state a
+11: // brand new user sees. It is deliberately not invisible: the whole discovery
+12: // problem with a plugin like this is that installing it tells you nothing about
+13: // what to do next.
+14: BarWidget {
+15:   id: root
+16:   moduleName: "nixfred.beam"
+17:   property var anchorItem: button
+18: 
+19:   readonly property var svc: bar && bar.shell ? bar.shell.serviceFor(moduleName) : null
+20:   readonly property bool ready: svc ? svc.ready : false
+21:   readonly property string state: svc ? svc.state : "checking"
+22:   readonly property bool streaming: svc ? svc.streaming : false
+23:   readonly property string warning: svc ? svc.warning : ""
+24: 
+25:   function setting(name, fallback) {
+26:     var v = settings ? settings[name] : undefined
+27:     return v === undefined ? fallback : v
+28:   }
+29:   readonly property bool showLabel: String(setting("showLabel", true)) !== "false"
+30: 
+31:   readonly property color foreground: bar ? bar.foreground : Color.foreground
+32: 
+33:   readonly property color dotColor: {
+34:     if (warning) return Color.warning !== undefined ? Color.warning : "#e0a030"
+35:     switch (state) {
+36:       case "live":  return Color.accent
+37:       case "ready": return Util.alpha(foreground, 0.75)
+38:       case "setup": return Util.alpha(foreground, 0.30)
+39:       default:      return Util.alpha(foreground, 0.30)
+40:     }
+41:   }
+42: 
+43:   readonly property string label: {
+44:     if (warning) return "check"
+45:     switch (state) {
+46:       case "live":  return "live"
+47:       case "ready": return "iPad"
+48:       case "setup": return "set up"
+49:       default:      return ""
+50:     }
+51:   }
+52: 
+53:   readonly property real contentWidth: Style.space(showLabel ? 54 : 24)
+54: 
+55:   implicitWidth: vertical ? barSize : contentWidth
+56:   implicitHeight: vertical ? contentWidth : barSize
+57: 
+58:   WidgetButton {
+59:     id: button
+60:     anchors.fill: parent
+61:     bar: root.bar
+62:     text: ""
+63:     labelVisible: false
+64:     // WidgetButton has no contentItem: children go straight in, and this flag
+65:     // is what tells it there is something to show despite the empty label.
+66:     hasVisualContent: true
+67:     active: false
+68:     useActiveColor: false
+69:     tooltipText: {
+70:       if (!root.ready) return "Beam — checking"
+71:       if (root.warning) return "Beam — " + root.warning
+72:       switch (root.state) {
+73:         case "live":  return "Beam — an iPad is watching this desktop"
+74:         case "ready": return "Beam — ready. Open Moonlight on the iPad."
+75:         default:      return "Beam — not set up yet. Click to start."
+76:       }
+77:     }
+78: 
+79:     Row {
+80:       anchors.centerIn: parent
+81:       spacing: Style.space(5)
+82: 
+83:       Item {
+84:         width: Style.space(18)
+85:         height: Style.space(18)
+86:         anchors.verticalCenter: parent.verticalCenter
+87: 
+88:         // A plain scaled circle at low opacity rather than a blur: a blur on a
+89:         // bar widget repaints every frame and is not worth the GPU at 18px.
+90:         Rectangle {
+91:           visible: root.streaming
+92:           anchors.centerIn: parent
+93:           width: parent.width * 1.6
+94:           height: width
+95:           radius: width / 2
+96:           color: root.dotColor
+97:           border.width: 0
+98:           opacity: pulse.value
+99:           NumberAnimation on opacity { id: pulse; property real value: 0.28
+100:             running: root.streaming; loops: Animation.Infinite
+101:             from: 0.10; to: 0.34; duration: 1400; easing.type: Easing.InOutSine }
+102:         }
+103: 
+104:         Rectangle {
+105:           anchors.centerIn: parent
+106:           width: parent.width * 0.6
+107:           height: width
+108:           radius: width / 2
+109:           color: root.dotColor
+110:           // Rectangle border defaults to width 1 even when never set, so the
+111:           // hairline has to be pinned off explicitly.
+112:           border.width: 0
+113:           Behavior on color { ColorAnimation { duration: 400 } }
+114:         }
+115:       }
+116: 
+117:       Text {
+118:         visible: root.showLabel
+119:         anchors.verticalCenter: parent.verticalCenter
+120:         text: root.label
+121:         color: root.state === "setup" ? Util.alpha(root.foreground, 0.55) : root.foreground
+122:         font.family: root.bar ? root.bar.fontFamily : Style.font.family
+123:         font.pixelSize: Style.font.bodySmall
+124:       }
+125:     }
+126: 
+127:     onPressed: function(code) {
+128:       if (root.bar) root.bar.hideTooltip(root)
+129:       root.toggle()
+130:     }
+131:   }
+132: 
+133:   readonly property bool opened: panel.opened
+134:   function open() { panel.controller.show(); if (svc) svc.refresh() }
+135:   function close() { panel.controller.hide() }
+136:   function toggle() { opened ? close() : open() }
+137:   function closeForPopoutSwitch() { close() }
+138:   readonly property bool popoutSwitchClosing: false
+139: 
+140:   BeamPanel {
+141:     id: panel
+142:     widget: root
+143:   }
+144: }
+
+===== prototype/manifest.json =====
+1: {
+2:   "schemaVersion": 1,
+3:   "id": "nixfred.beam",
+4:   "name": "Beam",
+5:   "version": "1.0.0",
+6:   "author": "nixfred",
+7:   "license": "MIT",
+8:   "description": "Stream this Omarchy session to an iPad. A guided wizard walks a first-timer from nothing to a live picture, with QR codes so nothing has to be typed on the iPad, and an expert mode that asks for what it needs and does it. Beam neither knows nor cares whether it is running on a laptop, a desktop or a VM.",
+9:   "kinds": [
+10:     "service",
+11:     "bar-widget",
+12:     "panel"
+13:   ],
+14:   "entryPoints": {
+15:     "service": "Service.qml",
+16:     "barWidget": "BarWidget.qml",
+17:     "panel": "BeamPanel.qml"
+18:   },
+19:   "barWidget": {
+20:     "displayName": "Beam",
+21:     "description": "A dot that says whether an iPad can watch this desktop, and lights up while one is. Click for the setup wizard.",
+22:     "category": "Network",
+23:     "aliases": ["beam", "ipad", "stream", "sunshine", "moonlight", "remote", "desktop"],
+24:     "allowMultiple": false,
+25:     "defaultSection": "right",
+26:     "defaults": {
+27:       "refreshSec": 5,
+28:       "holdAwake": true,
+29:       "showLabel": true
+30:     },
+31:     "schema": [
+32:       {
+33:         "key": "refreshSec",
+34:         "type": "integer",
+35:         "label": "Refresh interval (seconds)",
+36:         "description": "How often Beam re-checks whether an iPad is watching. It polls twice as fast while a stream is live.",
+37:         "min": 2,
+38:         "max": 120,
+39:         "defaultValue": 5
+40:       },
+41:       {
+42:         "key": "holdAwake",
+43:         "type": "boolean",
+44:         "label": "Hold the session awake while streaming",
+45:         "description": "A locked or idle session streams a black screen, which is the single most common way this setup appears broken. On, Beam keeps the session awake for exactly as long as an iPad is connected and hands idling straight back afterwards.",
+46:         "defaultValue": true
+47:       },
+48:       {
+49:         "key": "showLabel",
+50:         "type": "boolean",
+51:         "label": "Show the state beside the dot",
+52:         "description": "A short word next to the dot. Off leaves just the dot.",
+53:         "defaultValue": true
+54:       }
+55:     ]
+56:   },
+57:   "repository": "https://github.com/nixfred/beam",
+58:   "homepage": "https://omarchy.nixfred.com"
+59: }

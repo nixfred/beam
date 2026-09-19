@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="154" viewBox="0 0 1200 154" role="img" aria-labelledby="title desc">
+  <title id="title">One dot tells the story</title>
+  <desc id="desc">Set up means setup is unfinished. iPad means ready to connect. Live means Sunshine reports a stream. Check means attention is needed. Actual colors follow the active shell theme.</desc>
+  <rect width="1200" height="154" rx="18" fill="#0b1324"/>
+  <rect x=".5" y=".5" width="1199" height="153" rx="18" fill="none" stroke="#26334d"/>
+  <path d="M300 30V124M600 30V124M900 30V124" stroke="#26334d"/>
+  <g font-family="Inter,Arial,Helvetica,sans-serif">
+    <circle cx="43" cy="53" r="6" fill="#78859e"/>
+    <text x="62" y="61" font-size="24" font-weight="700" fill="#edf2ff">set up</text>
+    <text x="37" y="104" font-size="17" fill="#9aabc4">Your next step is waiting.</text>
+    <circle cx="343" cy="53" r="6" fill="#edf2ff"/>
+    <text x="362" y="61" font-size="24" font-weight="700" fill="#edf2ff">iPad</text>
+    <text x="337" y="104" font-size="17" fill="#9aabc4">Ready when you are.</text>
+    <circle cx="643" cy="53" r="15" fill="#a5b4fc" opacity=".14"/>
+    <circle cx="643" cy="53" r="10" fill="#a5b4fc" opacity=".18"/>
+    <circle cx="643" cy="53" r="6" fill="#a5b4fc"/>
+    <text x="662" y="61" font-size="24" font-weight="700" fill="#edf2ff">live</text>
+    <text x="637" y="104" font-size="17" fill="#9aabc4">Sunshine reports a stream.</text>
+    <circle cx="943" cy="53" r="6" fill="#fb8da6"/>
+    <text x="962" y="61" font-size="24" font-weight="700" fill="#edf2ff">check</text>
+    <text x="937" y="104" font-size="17" fill="#9aabc4">Open Beam for the details.</text>
+  </g>
+</svg>
