@@ -55,6 +55,9 @@ iPad.
   server with a monitor hanging off it. If there is an Omarchy session with a display and an
   address, Beam works. There must be no VM-specific, laptop-specific or GPU-specific code path
   anywhere in it.
+- **Not a command-line tool.** No user-facing command, no `PATH` entry, no man page, no
+  documented invocation. If a reviewer can reasonably describe the deliverable as "a script",
+  it has been built wrong.
 - **Not a credential holder.** It never creates, stores, transmits or reads back the Sunshine
   admin password, and it never handles a sudo password.
 
@@ -109,27 +112,41 @@ then caught by running it.**
 
 ## 5. Architecture
 
-Three parts, one rule: **the CLI owns every fact and every action; the QML only asks and
-relays.** This is the pattern that made the Lamplight plugin reliable. It means the bar dot,
-the wizard and a terminal can never tell the user three different stories, and it means the
-whole product is testable without a GUI.
+**What is being built is an Omarchy Quickshell plugin.** It lives in the bar. The entire user
+experience is a dot in the bar and a panel that opens when you click it. There is no command
+for a user to learn, nothing to type, and nothing in a terminal except the one install step
+that needs a password and is deliberately shown to the human.
+
+Inside the plugin there is a bash helper. **It is an internal implementation detail, not a
+product surface.** It exists because QML is a poor place to shell out from repeatedly and
+because a single source of facts keeps the bar dot and the panel honest. A user never sees it,
+never runs it, and its name never appears in the interface. Do not design around it as though
+it were the product, and do not add user-facing commands to it.
+
+With that understood, one rule governs the split: **the helper owns every fact and every
+action; the QML only asks and relays.** This is the pattern that made the Lamplight plugin
+reliable. The bar dot and the panel can then never tell the user two different stories, and
+the logic stays testable without a GUI.
 
 ```
-bin/omarchy-beam     bash. Every fact, every action. Prints JSON.
-Service.qml          polls the CLI, holds state, queues actions
-BarWidget.qml        one dot, always visible, says what is true
-BeamPanel.qml        the wizard and the expert screen
-QrCode.qml           renders a QR png via the CLI
 manifest.json        kinds: service, bar-widget, panel
+BarWidget.qml        the product: one dot in the bar, always visible
+BeamPanel.qml        the product: the wizard and the expert screen
+Service.qml          holds state, polls the helper, queues actions
+QrCode.qml           renders a QR png
+bin/omarchy-beam     internal helper. Every fact, every action. Prints JSON.
 ```
 
-The plugin ships its own CLI inside the plugin directory, and the QML resolves the path
-relative to itself. A hardcoded `/home/<someone>/bin/...` path works on exactly one machine,
-and this plugin is for strangers.
+The helper ships **inside the plugin directory**, and the QML resolves its path relative to
+itself. It is not installed to `~/bin`, not put on `PATH`, and not documented to users. A
+hardcoded `/home/<someone>/bin/...` path works on exactly one machine, and this plugin is for
+strangers.
 
-## 6. The CLI contract
+## 6. The internal helper contract
 
-`bin/omarchy-beam <command>`. This section is normative: the QML depends on every key.
+`bin/omarchy-beam <command>`, called only by the QML. This section is normative because the
+QML depends on every key, not because any of it is a user interface. Nothing here is
+advertised, documented to users, or reachable except through the panel.
 
 | Command | Does |
 |---|---|
@@ -178,7 +195,7 @@ Definitions that are not obvious:
   `2` if not installed, or ports/autostart/running incomplete; `4` if no admin login; `5` if
   nothing is paired; `6` when everything is done.
 
-### Hard rules on the CLI
+### Hard rules on the helper
 
 - **Never handle a sudo password.** Not on a command line, not in a variable, not on stdin.
   The one command that needs root (`install`) runs in a terminal the human can see and type
@@ -248,7 +265,7 @@ all required:
    it up cannot help you set it up.
 2. **One notification, once, ever**, four seconds after first load, and only if nothing is set
    up: *"Beam is ready to set up — Click the Beam dot in your bar to stream this desktop to
-   your iPad."* The marker lives in the CLI's state dir so it cannot fire twice. Per house
+   your iPad."* The marker lives in the helper's state dir so it cannot fire twice. Per house
    rules a notification must not steal focus, and clicking it must take you there.
 3. **The wizard opens on the first unfinished step**, not always at step 1. Someone who paired
    an iPad yesterday and opens Beam today lands on the last screen, not a tour.
@@ -384,7 +401,7 @@ months.
 
 ## 13. The prototype in this repo
 
-`prototype/` holds a working first cut written while this PRD was being drafted: the full CLI,
+`prototype/` holds a working first cut written while this PRD was being drafted: the helper,
 four QML files and the manifest. It was removed at one point and then restored on request, so
 it is here on purpose.
 
@@ -394,7 +411,7 @@ done, do not copy it wholesale.
 
 The two halves are not equally trustworthy:
 
-- **`prototype/bin/omarchy-beam` has been run.** Its JSON validates under `jq -e`, `doctor`
+- **The helper, `prototype/bin/omarchy-beam`, has been run.** Its JSON validates under `jq -e`, `doctor`
   runs clean, and a real bug was found and fixed in it by executing it (the `pgrep -c` issue
   in section 4). Everything it proved is also written down in sections 4, 6 and 6.4, so the
   spec stands alone without it.
