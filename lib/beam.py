@@ -693,10 +693,12 @@ class Beam:
         if not status["adminUp"]:
             return result(False, "pin" if pin else "admin", "Sunshine's setup page is not ready.", "Use Repair to start Sunshine, then try again.", "repair")
         url = status["adminUrl"] + ("/pin" if pin else "")
-        command = ["omarchy-launch-webapp", url] if self.system.have("omarchy-launch-webapp") else ["xdg-open", url]
+        # Keep Admin and PIN in the same private browser context. Extensions
+        # in the regular profile can suppress Sunshine's HTTP login prompt.
+        command = ["omarchy-launch-browser", "--private", url] if self.system.have("omarchy-launch-browser") else ["xdg-open", url]
         try:
             self.system.spawn(command)
-            return result(True, "pin" if pin else "admin", "Sunshine's page is opening.", "Its local certificate warning is expected.")
+            return result(True, "pin" if pin else "admin", "Sunshine's page is opening in your browser.", "Sign in with your Sunshine login. Keep this private window open for pairing; its local certificate warning is expected.")
         except OSError:
             return result(False, "pin" if pin else "admin", "The browser could not open.", "Open " + url + " in your browser.")
 

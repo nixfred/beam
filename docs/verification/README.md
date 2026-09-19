@@ -6,8 +6,9 @@ documentation address, supplied to the UI before native capture.
 
 ## Automated checks
 
-- Six backend regressions cover firewall readiness, log freshness, notification
-  routing, and exited-child handling during removal.
+- Eight backend regressions cover firewall readiness, log freshness, notification
+  routing, exited-child handling during removal, and shared private-browser Admin/PIN
+  launches with fallback and error reporting.
 - Eighteen display regressions cover native and fallback mode selection, a
   5120x1440 starting desktop, client dimension validation, preservation of
   Sunshine apps, mode rollback, multi-monitor selection, disconnect/crash

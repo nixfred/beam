@@ -99,6 +99,23 @@ class BackendTest(unittest.TestCase):
             time.sleep(0.01)
         self.assertFalse(Path(f"/proc/{pid}").exists())
 
+    def test_admin_and_pin_share_private_browser_for_authentication(self):
+        self.beam.status = lambda: dict(adminUp=True, adminUrl="https://localhost:47990")
+        self.system.have = lambda name: name in ("omarchy-launch-browser", "omarchy-launch-webapp")
+        with patch.object(self.system, "spawn", create=True) as spawn:
+            self.assertTrue(self.beam.open_admin()["ok"])
+            spawn.assert_called_with(["omarchy-launch-browser", "--private", "https://localhost:47990"])
+            self.assertTrue(self.beam.open_admin(pin=True)["ok"])
+            spawn.assert_called_with(["omarchy-launch-browser", "--private", "https://localhost:47990/pin"])
+
+    def test_admin_uses_default_browser_fallback_and_reports_launch_failure(self):
+        self.beam.status = lambda: dict(adminUp=True, adminUrl="https://localhost:47990")
+        with patch.object(self.system, "spawn", create=True) as spawn:
+            self.assertTrue(self.beam.open_admin()["ok"])
+            spawn.assert_called_with(["xdg-open", "https://localhost:47990"])
+            spawn.side_effect = OSError("browser unavailable")
+            self.assertFalse(self.beam.open_admin()["ok"])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -113,6 +113,19 @@ If a code change stays cached after rescanning, use `omarchy restart shell`.
 The step rail works in both directions. Your current progress is checked live.
 For repeat visits, switch to **Expert** for the address, QR codes, and PIN page.
 
+If Sunshine reports success creating your login, then shows **401 / Unauthorized**,
+open **Admin** and sign in with that new Sunshine username and password. Admin
+and PIN pages open in the same private browser session; keep that window open
+for pairing. This avoids extensions in the regular profile that can suppress
+the login prompt, as reported in [Sunshine's troubleshooting discussion](https://github.com/orgs/LizardByte/discussions/788).
+
+If the iPad says **Incorrect PIN** while Sunshine's web page says success,
+start a fresh pairing attempt in Moonlight. Keep its PIN visible and enter those
+exact four digits in Sunshine, including any leading zero. Wait for Moonlight
+to confirm pairing. Sunshine 2026.516's web success means it accepted the PIN
+submission, before the authenticated handshake finishes
+([Sunshine source](https://github.com/LizardByte/Sunshine/blob/v2026.516.143833/src/nvhttp.cpp#L635-L680)).
+
 ## An iPad fit for an ultrawide desktop
 
 A **5120×1440** desktop should not become a tiny panoramic strip on your iPad.
@@ -192,7 +205,7 @@ omarchy plugin remove nixfred.beam
 
 | Verified locally | Evidence |
 | :--- | :--- |
-| **31 regression tests** | Six backend, eighteen sizing/recovery, and seven service-state tests. |
+| **33 regression tests** | Eight backend, eighteen sizing/recovery, and seven service-state tests. |
 | **Clean VM install and removal** | One running Sunshine after install; zero processes and zero streaming rules after removal. |
 | **No-scroll layouts** | All six guided steps, Expert, long errors, and confirmation at 1280×800; normal views on a 5120×1440 host. |
 | **Dark and light QR codes** | Both codes decoded from captured screens with software. |

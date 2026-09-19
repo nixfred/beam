@@ -527,7 +527,7 @@ Ui.Panel {
                             }
                         }
                         Caption {
-                            text: "Add PC (+): paste the address. Tap the PC; enter its PIN on the PIN page here."
+                            text: "Tap the PC; enter its current four-digit PIN here, including any leading zero."
                         }
                         Caption {
                             text: "Mouse and keyboard required for Beam; Bluetooth is fine."
@@ -937,7 +937,7 @@ Ui.Panel {
                         text: "Check the page is " + (svc ? svc.adminUrl : "https://localhost:47990") + ", then use the browser's Advanced option to continue."
                     }
                     Caption {
-                        text: "Return here after creating your login. Beam checks automatically."
+                        text: "After creating your login, sign in again when the browser asks. Keep that private window open for pairing."
                     }
                 }
             }
@@ -985,15 +985,15 @@ Ui.Panel {
                 }
                 Instruction {
                     number: 2
-                    text: "Tap the PC. Moonlight shows a four-digit PIN."
+                    text: "Tap the PC. Keep its current four-digit PIN visible."
                 }
                 Instruction {
                     number: 3
-                    text: "Open the PIN page here and enter the PIN from the iPad."
+                    text: "Enter that PIN here, including any leading zero."
                 }
                 Instruction {
                     number: 4
-                    text: "In Moonlight, choose Full or Safe Area resolution, then tap Beam Desktop."
+                    text: "Wait for Moonlight to confirm pairing, then tap Beam Desktop."
                 }
                 RowLayout {
                     Layout.fillWidth: true
