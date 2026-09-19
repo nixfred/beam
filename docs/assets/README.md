@@ -11,8 +11,9 @@ external image host, tracking badge, or live metric service is required.
 | `beam-expert-dark.png` | Native panel capture, Tokyo Night theme. |
 | `beam-expert-light.png` | Native panel capture, Catppuccin Latte theme. |
 | `beam-guided.png` | Native panel capture of the computer setup step. |
+| `ipad-picker.png` | Native iPad-model picker on a 2048x1536 capture output at scale 2 (1024x768 logical), Catppuccin Latte. |
 
-The screenshots are real captures from the isolated Omarchy test VM at
+The three original panel screenshots are real captures from the isolated Omarchy test VM at
 1280x800. The region was taken directly from the live panel's measured bounds
 using `grim -g`. Its content was not retouched or generated. For publication,
 the VM's UI receives the documentation-only address `192.0.2.10` before capture;
@@ -23,6 +24,13 @@ pairing is implied. The fixture is not part of production code.
 For this later README capture pass, Sunshine was reinstalled in the existing
 task VM. The VM was stopped afterward with that screenshot setup preserved.
 The earlier removal test and its saved evidence remain unchanged.
+
+The later `ipad-picker.png` shows the complete native iPad capture output after
+a successful clean installer run. Its 1024x768 logical workspace includes all
+six Pro model groups and the install result without scrolling. This capture uses
+a synthetic client size and has no account or network-address fixture. No
+physical pairing is implied. Pixels were captured directly with `grim` and were
+not retouched.
 
 GitHub's `<picture>` support selects the expert screenshot matching the reader's
 color preference. Explicit full-size links remain available for either theme.
