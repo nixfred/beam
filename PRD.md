@@ -190,6 +190,52 @@ Definitions that are not obvious:
 - **`status` must never fail.** Missing files, missing `ufw`, missing `tailscale`, Sunshine not
   installed: all are normal states with a JSON answer, not errors.
 
+### 6.4 Detection recipes
+
+These are the exact mechanics. They were established by running them; do not substitute
+something that looks equivalent without testing it.
+
+**Installed / running / count.** `command -v sunshine`, `pgrep -x sunshine`, and for the count
+`n=$(pgrep -cx sunshine 2>/dev/null); printf '%s' "${n:-0}"`. Capture first: see section 4 on
+why `|| echo 0` is wrong here.
+
+**Which unit the package ships.** Probe both `app-dev.lizardbyte.app.Sunshine.service` and
+`sunshine.service` against `systemctl --user list-unit-files`; empty means the package provides
+no user unit and the Hyprland autostart line is the only launcher.
+
+**Firewall rules.** Count lines matching the comment `omarchy-sunshine` in
+`sudo -n ufw status`. Use `-n`: a status check must never block on a password prompt. No `ufw`
+at all is a valid state, not a failure.
+
+**Autostart.** `grep -Fxq 'o.launch_on_start("sunshine")' ~/.config/hypr/autostart.lua`.
+
+**Admin login exists.** A `username` line with a non-empty value in
+`~/.config/sunshine/sunshine.conf`. Never read the password field.
+
+**Paired clients.** Count objects carrying a `uniqueid` in
+`~/.config/sunshine/sunshine_state.json`. Guard the result: if it is not all digits, it is 0.
+
+**Encoder.** `grep -aoiE 'Found H\.?264 encoder: *[a-z0-9_]+' ~/.config/sunshine/sunshine.log |
+tail -1`, then strip to the name. This is the only permitted source (section 4).
+
+**Display captured.** `Found display` or `Found monitor` anywhere in the same log.
+
+**Streaming now.** The last line matching `CLIENT (CONNECTED|DISCONNECTED)` in the log, and it
+counts as streaming only if it is the CONNECTED one. Tail the log; this runs every two seconds.
+
+**Address.** `tailscale ip -4 | head -1` if Tailscale is present, else the `src` field of
+`ip -4 route get 1.1.1.1`. Prefer the tailnet address.
+
+**Session locked.** `pgrep -x hyprlock`, or `hyprlock` present in `hyprctl -j clients`.
+
+**Reusing the stock installer's functions.** Find the line number of the literal line
+`echo "Installing Sunshine..."` in `/usr/bin/omarchy-install-service-sunshine`, write
+everything above it to a temp file, append a call to the function you want
+(`open_ufw_ports`, `install_admin_webapp`, `enable_hyprland_autostart`), and run it. The
+firewall one needs root: run it as **one** root call, because the script's inner `sudo ufw`
+lines then need no further authentication, and because sudo caching does not survive between
+invocations without a TTY (section 4).
+
 ## 7. The user experience
 
 ### 7.1 Discovery: the part that actually matters
@@ -336,12 +382,13 @@ it. It gets its own PR against Omarchy that fixes the unit name, independent of 
 Beam still ships its repair path regardless, because users will be on unpatched versions for
 months.
 
-## 13. The prototype in this repo
+## 13. On the prototype that is not in this repo
 
-`prototype/` holds a working first cut written while this PRD was being drafted: the full CLI
-(tested, JSON validated, the `pgrep -c` bug found and fixed by running it), plus the four QML
-files and the manifest.
+A working first cut was written while this PRD was being drafted: the full CLI, four QML files
+and the manifest. It was deliberately **deleted** so that this build starts clean from the
+spec rather than inheriting a sketch.
 
-**Its status is reference, not gospel.** The CLI is the more valuable half: it has been run.
-The QML has been written but never loaded into a shell, so treat it as a sketch of the layout
-and nothing more. Where the prototype and this document disagree, **this document wins.**
+Nothing was lost by deleting it. Everything it proved is written down here: the JSON contract
+in section 6, the detection recipes in section 6.4, the `pgrep -c` bug in section 4, and the
+QML gotchas in section 9. It is recoverable from commit `29cb14c` if a question ever comes up
+that this document does not answer, but the intent is that it never needs to be.

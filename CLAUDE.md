@@ -9,8 +9,10 @@
 an iPad, using Sunshine to send and Moonlight to show. A guided wizard takes a first-timer
 from nothing to a live picture; an expert screen does the whole job in one click.
 
-`PRD.md` is the spec and it is normative. **Astra6 (`gpt-6-astra`) builds from it.** Where
-anything else in this repo disagrees with the PRD, the PRD wins.
+`PRD.md` is the spec and it is normative. **Astra6 (`gpt-6-astra`) builds from it, clean.**
+A working prototype was written and then deliberately deleted so the build starts from the
+spec, not from a sketch; everything it proved is written into the PRD, and it is recoverable
+from commit `29cb14c` if ever needed. Where anything disagrees with the PRD, the PRD wins.
 
 ## The rule that shapes everything
 
@@ -37,9 +39,6 @@ and the whole product is testable without a GUI.
 PRD.md                  the spec. Normative. Astra6 builds from this.
 CLAUDE.md               this file
 docs/original-runbook.md  the 2,400-word runbook Beam exists to replace
-prototype/              a working first cut. Reference, not gospel.
-  bin/omarchy-beam      the CLI. Tested, JSON validated.
-  *.qml, manifest.json  written but never loaded into a shell. A sketch.
 ```
 
 ## Verified on gus, 2026-09-19
