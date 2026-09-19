@@ -124,6 +124,7 @@ class BackendTest(unittest.TestCase):
         old = [dict(pid=123, identity="1", browser=False)]
         current = [dict(pid=456, identity="2", browser=True)]
         with patch.object(self.beam.display, "install", return_value=False), \
+                patch.object(self.beam.display.virtual, "install", return_value=False), \
                 patch.object(self.beam, "stock_function"), \
                 patch.object(self.beam, "stop_processes") as stop, \
                 patch.object(self.beam, "processes", side_effect=[old, current, current]), \

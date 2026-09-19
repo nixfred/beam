@@ -157,6 +157,8 @@ advertised, documented to users, or reachable except through the panel.
 | `ports` | reopens the firewall ports using the stock installer's own function |
 | `admin` | opens the Sunshine admin page |
 | `pin` | opens the admin page's PIN tab |
+| `set-resolution WIDTHxHEIGHT\|auto` | pins a validated picture size, or resumes client-sized selection; Moonlight must request matching dimensions |
+| `prepare-display` | creates the named virtual capture display before Sunshine starts; native pixels and readable scaling are applied by the stream hooks |
 | `qr <text>` | writes a QR png, prints its path, caches by content |
 | `hold on\|off\|auto` | holds the session awake, or gives idling back |
 | `greet` | fires the one first-run notification, once ever |
@@ -447,3 +449,20 @@ The two halves are not equally trustworthy:
   spec stands alone without it.
 - **The QML has never been loaded into a shell.** It is a sketch of the layout and nothing
   more. Treat every line of it as unverified.
+
+
+## Native iPad sizing follow-up (2026-09-19)
+
+The no-borders requirement supersedes the physical-monitor mode fallback.
+Repair enables a named Hyprland headless output before Sunshine starts. The
+Sunshine-only launcher supplies capture/output overrides without changing the
+user's Sunshine configuration file or credentials. Moonlight Full supplies exact
+pixel dimensions; Beam uses 200% scale when the logical workspace remains at
+least 960×640, with smaller scale choices for smaller requests. It moves the
+source monitor's workspaces to the capture output and mirrors that output on
+the physical monitor. Persistent recovery returns those workspaces and undoes
+Beam's mirror on disconnect, failure or Sunshine exit. Preserve newer manual
+physical layout changes. Keep recovery state when a source monitor is missing.
+The idle capture output uses a named empty workspace away from physical screens.
+The helper validates actual compositor modes and mirrors after applying them.
+Physical iPad acceptance must verify Full negotiation, readability and input.

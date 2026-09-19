@@ -73,6 +73,52 @@ class DisplayTests(unittest.TestCase):
             choose_mode(self.system.monitors[0], (400, 400, 60))
         self.assertFalse(self.system.commands)
 
+    def test_fixed_1440p_overrides_720p_desktop_but_reports_client_request(self):
+        self.fit.set_resolution("2560x1440")
+        session = self.fit.start(dict(self.request, SUNSHINE_CLIENT_WIDTH="1280", SUNSHINE_CLIENT_HEIGHT="720"))
+        self.assertEqual(session["requested"], [1280, 720, 60])
+        self.assertEqual(session["target"], [2560, 1440, 60])
+        self.assertEqual(self.system.monitors[0]["width"], 2560)
+        self.assertIn("Moonlight requests 1280×720", self.fit.status()["resolutionDetail"])
+        self.assertEqual(self.fit.status()["moonlightSetting"], "Custom 2560×1440")
+
+    def test_fixed_size_restores_original_scale_and_persists_for_next_stream(self):
+        self.system.monitors[0]["scale"] = 2
+        self.fit.set_resolution("2560x1440")
+        self.fit.start(self.request)
+        self.assertEqual(self.system.monitors[0]["scale"], 1)
+        self.fit.stop()
+        self.assertEqual(self.system.monitors[0]["width"], 5120)
+        self.assertEqual(self.system.monitors[0]["scale"], 2)
+        self.assertEqual(self.fit.fixed_size(), (2560, 1440, 60))
+
+    def test_unsupported_fixed_mode_preserves_previous_setting(self):
+        self.fit.set_resolution("1920x1080")
+        with self.assertRaises(DisplayError):
+            self.fit.set_resolution("2752x2064")
+        self.assertEqual(self.fit.fixed_size(), (1920, 1080, 60))
+        self.assertEqual(self.system.monitors[0]["width"], 5120)
+
+    def test_auto_clears_fixed_mode_and_follows_client_again(self):
+        self.fit.set_resolution("2560x1440")
+        self.fit.set_resolution("auto")
+        self.fit.start(dict(self.request, SUNSHINE_CLIENT_WIDTH="1920", SUNSHINE_CLIENT_HEIGHT="1080"))
+        self.assertEqual(self.system.monitors[0]["width"], 1920)
+        self.assertFalse(self.fit.status()["resolutionPinned"])
+
+    def test_disappearing_fixed_mode_fails_instead_of_silently_shrinking(self):
+        self.fit.set_resolution("2560x1440")
+        self.system.monitors[0]["availableModes"] = ["1920x1080@60Hz"]
+        with self.assertRaises(DisplayError):
+            self.fit.start(self.request)
+        self.assertEqual(self.system.monitors[0]["width"], 5120)
+        self.assertFalse(self.fit.state.exists())
+
+    def test_matching_fixed_request_is_reported_without_mismatch(self):
+        self.fit.set_resolution("2560x1440")
+        self.fit.start(dict(self.request, SUNSHINE_CLIENT_WIDTH="2560", SUNSHINE_CLIENT_HEIGHT="1440"))
+        self.assertIn("Moonlight matches", self.fit.status()["resolutionDetail"])
+
     def test_client_dimensions_are_validated_as_numbers(self):
         for value in ("$(touch /tmp/should-never-exist)", "0", "-1", "999999", "nan"):
             with self.subTest(value=value), self.assertRaises(DisplayError):

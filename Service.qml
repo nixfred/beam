@@ -48,9 +48,10 @@ Item {
     readonly property bool displayFound: statusFresh && snapshot.displayFound === true
     readonly property string encoder: String(snapshot.encoder || "")
     readonly property string encoderKind: String(snapshot.encoderKind || "unknown")
-    readonly property string recommendedRes: String(snapshot.recommendedRes || "Full / Safe Area · 60 fps")
-    readonly property string resolutionDetail: String(snapshot.resolutionDetail || "Choose Full or Safe Area in Moonlight.")
+    readonly property string recommendedRes: String(snapshot.recommendedRes || "Full · 60 fps")
+    readonly property string resolutionDetail: String(snapshot.resolutionDetail || "Choose Full in Moonlight.")
     readonly property bool resolutionActive: snapshot.resolutionActive === true
+    readonly property string moonlightSetting: String(snapshot.moonlightSetting || "Full")
     readonly property bool resolutionReady: snapshot.resolutionReady === true
     readonly property int recommendedBitrate: Number(snapshot.recommendedBitrate || 20)
     readonly property int pairedClients: Number(snapshot.pairedClients || 0)

@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import shlex
 import shutil
+import subprocess
 import sys
 import tempfile
 from urllib.parse import urlsplit, urlunsplit
@@ -53,6 +54,14 @@ def launch():
         binary = shutil.which("sunshine")
         if not binary:
             raise SystemExit("Sunshine is not installed.")
+        virtual = Path(__file__).resolve().parent.parent / "display-virtual.json"
+        overrides = []
+        if virtual.exists():
+            settings = json.loads(virtual.read_text())
+            prepared = subprocess.run([settings["entry"], "prepare-display"], check=False)
+            if prepared.returncode:
+                raise SystemExit("Beam could not prepare the iPad capture display. Use Repair.")
+            overrides = ["output_name=" + settings["output"], "capture=wlr"]
         original = os.environ.get("PATH", os.defpath)
         os.environ["BEAM_SUNSHINE_ORIGINAL_PATH"] = original
         os.environ["BEAM_SUNSHINE_BROWSER"] = "1"
@@ -64,7 +73,7 @@ def launch():
         record = dict(pid=os.getpid(), identity=identity, version=1)
         BrowserBridge.write(Path(__file__).resolve().parent / "process.json",
                             json.dumps(record).encode(), 0o600)
-        os.execv(binary, [binary, *sys.argv[1:]])
+        os.execv(binary, [binary, *sys.argv[1:], *overrides])
 
 
 class BrowserBridge:

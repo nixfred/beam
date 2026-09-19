@@ -10,15 +10,22 @@ documentation address, supplied to the UI before native capture.
   routing, exited-child handling during removal, and shared private-browser Admin/PIN
   launches with fallback and error reporting, plus running-process migration and
   refusal to restart an active stream.
-- Eight browser regressions cover local-origin matching, unrelated-link fallback,
+- Nine browser regressions cover local-origin matching, unrelated-link fallback,
   custom ports, idempotent startup migration, backup preservation, removal, duplicate
   startup repair, PID reuse rejection, and a real child-process notification route that restores the
-  browser's original command search path.
-- Twenty-one display regressions cover native and fallback mode selection, a
+  browser's original command search path. The native launcher test also checks that
+  display preparation precedes capture and failure prevents a wrong-display launch.
+- Twenty-seven display regressions cover native and fallback mode selection, a
   5120x1440 starting desktop, client dimension validation, preservation of
   Sunshine apps, mode rollback, multi-monitor selection, disconnect/crash
   recovery, rotated outputs, preservation of manual display changes, migration of
-  the unmodified Desktop tile, and preservation of customized/ambiguous desktop apps.
+  the unmodified Desktop tile, preservation of customized/ambiguous desktop apps,
+  fixed-mode persistence, a 720p client mismatch, scale restoration, returning to
+  automatic sizing, and refusal to replace an unavailable fixed mode with a smaller one.
+- Eleven additional native-display regressions cover iPad pixel dimensions and readable
+  scaling, exact sizing independent of EDID, durable rollback, failed recovery,
+  manual changes, unplugged source recovery, newly opened workspaces, multiple
+  source selection, disabled laptop panels, fixed native sizes and missing capture outputs.
 - Seven service-state tests cover stale/malformed status, action queues,
   terminal progress, error recovery, and idle-inhibitor eligibility.
 - The Omarchy manifest validator and whitespace checks pass.
@@ -42,7 +49,10 @@ A subsequent physical iPad launch of Beam Desktop sent **1280x720 at 60 FPS**.
 The preparation hook ran, saved the original 5120x1440 layout, and Hyprland and
 Sunshine both confirmed a 1280x720 desktop at scale 1 while streaming. This
 confirms real client-size negotiation and resizing. The user reported the UI
-looked oversized at 720p; Full/Safe Area quality remains to be checked.
+looked oversized at 720p. A later 2560x1440 physical-mode pin made text too
+small and retained borders, while Moonlight still requested 1280x720. The native
+virtual-display implementation supersedes that workaround; Full quality remains
+to be checked on the physical iPad.
 
 The host's Sunshine startup was migrated to the notification-browser helper with
 a backup. One running process, matching PID/start-time ownership, configured login,
@@ -63,7 +73,7 @@ from screenshots with software. Normal views also fit on a 5120x1440 host.
 A real Wayland idle observer responded to synthetic Sunshine connect/disconnect
 events and confirmed that the hold released afterward.
 
-The current sizing implementation receives the actual Moonlight request through
+The original physical-mode sizing implementation received the actual Moonlight request through
 Sunshine's preparation environment. A foreground Beam Desktop app observes the
 current Sunshine process and stream log, ends after the last client disconnects,
 and restores the saved mode. Sunshine's undo hook also restores it on quit.
@@ -82,13 +92,37 @@ Remove confirmation fit at 1024x768. Current public captures also fit at
 monitor configuration; the session supervisor ends the resized session instead
 of continuing to capture an unintended size, preserving that newer layout.
 
+## Native virtual-display verification
+
+The dedicated VM created a normally initialized headless output and Sunshine
+2026.516 captured it with its software H.264 encoder. Initializing the output
+as a mirror caused capture discovery to fail, so Beam keeps a normal named
+headless output and mirrors only the physical screen during a stream.
+
+Production Beam code exercised exact 2752x2064, 2360x1640 and 2048x1536 modes at
+200% scale, verified the physical display's mirror target, and restored its
+original mode, position and scale after every session. Physical workspaces
+returned and only the empty named workspace remained on the capture output.
+A fresh startup preserved the physical layout. The real supervisor restored
+after simulated disconnect log events and after stopping the actual VM Sunshine
+process. Expert, Connect and Watch fit at 1024x768 logical resolution after
+hotplug settled. A screenshot exposed a temporary overlap warning; staging the
+resize off-screen before mirroring, and parking it before restoration, removed
+that warning in the final native capture.
+
+The live host now runs one Sunshine with hardware `h264_vaapi`, its original
+login and one paired iPad, and the native capture output. An idle-host synthetic
+2360x1640 request applied at scale 2 and restored the original 5120x1440 physical
+layout. The earlier 2560x1440 pin was removed. These compositor tests do not
+substitute for a new physical iPad connection using Full.
+
 ## Remaining acceptance
 
 Physical iPad pairing, video, audio and a requested 720p resize are confirmed.
 Still needed: camera scanning, Full/Safe Area requests, image quality, input,
 and restoration after a real resized stream disconnects.
-The chosen fallback may have less detail or small borders when
-the physical monitor cannot display the requested native size.
+Native sizing now removes the physical panel mode limit. Full still must be
+selected in Moonlight; a 720p or fixed 16:9 request can leave borders.
 
 After changing Moonlight's resolution, quit the existing session and launch
 Beam Desktop again. Sunshine does not rerun preparation hooks for a resume.

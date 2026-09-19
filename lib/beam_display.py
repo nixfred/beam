@@ -49,10 +49,10 @@ def requested_size(environ):
     try:
         values = tuple(int(environ["SUNSHINE_CLIENT_" + key]) for key in ("WIDTH", "HEIGHT", "FPS"))
     except (KeyError, ValueError, TypeError):
-        raise DisplayError("Moonlight did not send a valid picture size.", "Select Full or Safe Area in Moonlight, then start Beam Desktop again.")
+        raise DisplayError("Moonlight did not send a valid picture size.", "Select Full in Moonlight, then start Beam Desktop again.")
     width, height, fps = values
     if not (320 <= width <= 8192 and 320 <= height <= 8192 and width * height <= 33554432 and 1 <= fps <= 240):
-        raise DisplayError("Moonlight requested an unsupported picture size.", "Choose Full or Safe Area and 60 FPS in Moonlight.")
+        raise DisplayError("Moonlight requested an unsupported picture size.", "Choose Full and 60 FPS in Moonlight.")
     return values
 
 
@@ -83,9 +83,38 @@ def choose_mode(monitor, requested):
 
 class DisplayFit:
     def __init__(self, beam):
+        from beam_virtual import VirtualDisplay
         self.beam = beam
         self.state = beam.state / "display-session.json"
         self.error = beam.state / "display-error.json"
+        self.preferences = beam.state / "display-preferences.json"
+        self.virtual = VirtualDisplay(self)
+
+    def fixed_size(self):
+        value = load(self.preferences)
+        if not value:
+            return None
+        if not isinstance(value, dict):
+            raise DisplayError("The saved fixed resolution is invalid.")
+        return requested_size({"SUNSHINE_CLIENT_" + key.upper(): value.get(key)
+                               for key in ("width", "height", "fps")})
+
+    def set_resolution(self, value):
+        with self.lock():
+            if value == "auto":
+                self.preferences.unlink(missing_ok=True)
+                self.error.unlink(missing_ok=True)
+                return None
+            match = re.fullmatch(r"(\d+)x(\d+)", value)
+            if not match:
+                raise DisplayError("Use WIDTHxHEIGHT or auto for the desktop resolution.")
+            target = requested_size({"SUNSHINE_CLIENT_WIDTH": match[1],
+                                     "SUNSHINE_CLIENT_HEIGHT": match[2], "SUNSHINE_CLIENT_FPS": 60})
+            if not self.virtual.enabled() and not choose_mode(self.monitor(), target)["exact"]:
+                raise DisplayError("This display does not support that fixed resolution.", "Choose an advertised display mode. The previous setting was kept.")
+            save(self.preferences, dict(zip(("width", "height", "fps"), target)))
+            self.error.unlink(missing_ok=True)
+            return target
 
     @contextlib.contextmanager
     def lock(self):
@@ -156,19 +185,36 @@ class DisplayFit:
             requested = session.get("requested", [])
             active = bool(session.get("token"))
             error = load(self.error).get("message", "")
-            text = "Full / Safe Area · 60 fps"
-            detail = "Choose Full or Safe Area in Moonlight. Open Beam Desktop."
+            fixed = self.fixed_size()
+            native = self.virtual.enabled()
+            if native:
+                from beam_virtual import OUTPUT
+                configured = configured and any(m["name"] == OUTPUT for m in self.virtual.monitors())
+            setting = f"Custom {fixed[0]}×{fixed[1]}" if fixed else "Full"
+            text = "Full · 60 fps"
+            detail = "Choose Full in Moonlight. Open Beam Desktop."
             if active and len(requested) == 3:
                 text = f"iPad request {requested[0]}×{requested[1]}"
                 detail = f"Desktop {current.get('pictureWidth', current['width'])}×{current.get('pictureHeight', current['height'])} · " + ("exact fit" if current.get("exact") else "closest supported fit")
+                if session.get("kind") == "virtual":
+                    detail += f" · {current['scale'] * 100:g}% text"
+            if fixed:
+                text = f"Fixed {fixed[0]}×{fixed[1]} · {fixed[2]} fps"
+                detail = f"Set Moonlight to {setting}. Open Beam Desktop."
+                if active and len(requested) == 3:
+                    detail = f"Desktop {current.get('pictureWidth', current['width'])}×{current.get('pictureHeight', current['height'])}. "
+                    detail += ("Moonlight matches." if requested[:2] == list(fixed[:2]) else
+                               f"Moonlight requests {requested[0]}×{requested[1]}; set {setting}.")
             return dict(resolutionReady=configured, resolutionActive=active, recommendedRes=text,
-                        resolutionDetail=error or session.get("error", detail), resolutionError=error)
+                        resolutionDetail=error or session.get("error", detail), resolutionError=error,
+                        resolutionPinned=bool(fixed), moonlightSetting=setting, nativeResolution=native)
         except (DisplayError, KeyError, TypeError):
             return dict(resolutionReady=False, resolutionActive=False,
-                        recommendedRes="Full / Safe Area · 60 fps", resolutionDetail="Use Repair to enable automatic iPad sizing.", resolutionError="")
+                        recommendedRes="Full · 60 fps", resolutionDetail="Use Repair to enable automatic iPad sizing.", resolutionError="",
+                        resolutionPinned=False, moonlightSetting="Full")
 
-    def monitors(self):
-        rc, output = self.beam.run(["hyprctl", "-j", "monitors"])
+    def monitors(self, all_outputs=False):
+        rc, output = self.beam.run(["hyprctl", "-j", "monitors", *(["all"] if all_outputs else [])])
         try:
             monitors = json.loads(output)
         except ValueError:
@@ -202,15 +248,23 @@ class DisplayFit:
     def apply(self, name, mode):
         if not re.fullmatch(r"[A-Za-z0-9_.:-]+", name):
             raise DisplayError("The display connector name is unsupported.")
-        code = "hl.monitor({ output = %s, mode = %s, position = %s, scale = %s })" % (
+        extra = ", mirror = %s, transform = %s" % (json.dumps(mode["mirror"]), int(mode.get("transform", 0))) if "mirror" in mode else ""
+        code = "hl.monitor({ output = %s, mode = %s, position = %s, scale = %s%s })" % (
             json.dumps(name), json.dumps(mode["mode"]),
-            json.dumps(f"{int(mode['x'])}x{int(mode['y'])}"), float(mode["scale"]))
+            json.dumps(f"{int(mode['x'])}x{int(mode['y'])}"), float(mode["scale"]), extra)
         rc, output = self.beam.run(["hyprctl", "eval", code])
         if rc or output.strip() != "ok":
             raise DisplayError("Hyprland could not apply the requested display mode.")
         deadline = time.monotonic() + 3
         while time.monotonic() < deadline:
-            if any(m.get("name") == name and self.matches(m, mode) for m in self.monitors()):
+            monitors = self.monitors(all_outputs="mirror" in mode)
+            for monitor in monitors:
+                if monitor.get("name") != name or not self.matches(monitor, mode):
+                    continue
+                if "mirror" in mode:
+                    target = next((str(m["id"]) for m in monitors if m["name"] == mode["mirror"]), "none")
+                    if str(monitor.get("mirrorOf", "none")) != target:
+                        continue
                 return
             time.sleep(0.1)
         raise DisplayError("The display did not confirm its new mode.")
@@ -223,6 +277,8 @@ class DisplayFit:
     def restore(self, session, force=False):
         if not session:
             return
+        if session.get("kind") == "virtual":
+            return self.virtual.restore(session)
         matches = [m for m in self.monitors() if m.get("name") == session["monitor"]]
         if not matches:
             raise DisplayError("The original display is disconnected.", "Reconnect it and use Restore display in Beam.")
@@ -244,16 +300,25 @@ class DisplayFit:
             previous = load(self.state)
             if previous:
                 self.restore(previous)
-            monitor = self.monitor()
-            original = self.original(monitor)
-            applied = dict(original, **choose_mode(monitor, requested))
-            if applied["width"] / applied["scale"] < 960 or applied["height"] / applied["scale"] < 640:
-                applied["scale"] = 1
             processes = self.beam.processes()
             if len(processes) != 1:
                 raise DisplayError("Automatic sizing requires one running Sunshine.")
+            if self.virtual.enabled():
+                return self.virtual.start(requested, processes[0])
+            monitor = self.monitor()
+            original = self.original(monitor)
+            fixed = self.fixed_size()
+            target = fixed or requested
+            chosen = choose_mode(monitor, target)
+            if fixed and not chosen["exact"]:
+                raise DisplayError("The fixed desktop resolution is no longer supported.", "Choose another supported fixed mode or set the resolution back to auto.")
+            applied = dict(original, **chosen)
+            if fixed:
+                applied["scale"] = 1
+            if applied["width"] / applied["scale"] < 960 or applied["height"] / applied["scale"] < 640:
+                applied["scale"] = 1
             session = dict(token=uuid.uuid4().hex, monitor=monitor["name"], original=original,
-                           applied=applied, requested=list(requested), owner=processes[0])
+                           applied=applied, requested=list(requested), target=list(target), fixed=bool(fixed), owner=processes[0])
             save(self.state, session)  # Recovery is durable before the first display change.
             try:
                 self.apply(monitor["name"], applied)
@@ -301,6 +366,11 @@ class DisplayFit:
                 # silently turn this session back into an ultrawide capture.
                 if not any(m.get("name") == session["monitor"] and self.matches(m, session["applied"]) for m in self.monitors()):
                     break
+                if session.get("kind") == "virtual":
+                    monitors = self.virtual.monitors()
+                    virtual = next((m for m in monitors if m["name"] == session["monitor"]), {})
+                    if not any(m["name"] == session["source"] and str(m.get("mirrorOf")) == str(virtual.get("id")) for m in monitors):
+                        break
                 if self.beam.log_facts(rows, log)["streaming"]:
                     connected = True
                     last_live = time.monotonic()

@@ -492,7 +492,7 @@ Ui.Panel {
                             font.bold: true
                         }
                         Caption {
-                            text: svc && svc.pairedClients > 0 ? "In Moonlight, choose Full or Safe Area, then Beam Desktop." : "First pairing: iPad and computer on the same network."
+                            text: svc && svc.pairedClients > 0 ? "Moonlight: " + svc.moonlightSetting + ", then Beam Desktop." : "First pairing: iPad and computer on the same network."
                         }
                         RowLayout {
                             Layout.fillWidth: true
@@ -1035,7 +1035,7 @@ Ui.Panel {
                         text: panel.settingsText()
                     }
                     Caption {
-                        text: "Beam reads the iPad's requested size at connection. Unsupported modes use the closest fit."
+                        text: "Moonlight resolution: " + (svc ? svc.moonlightSetting : "Full") + ". Quit and relaunch after changing it."
                     }
                 }
                 Card {

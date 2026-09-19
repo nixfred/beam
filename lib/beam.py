@@ -545,7 +545,9 @@ class Beam:
             raise Failure("Sunshine is not installed.", "Use Install to set up this computer.", "install")
         if self.status()["streaming"]:
             raise Failure("End the current stream before Repair.", "Quit Beam Desktop in Moonlight, then retry.")
+        self.display.stop()
         apps_changed = self.display.install()
+        display_changed = self.display.virtual.install()
         for unit, enabled in self.units():
             if enabled:
                 self.require(["systemctl", "--user", "disable", "--now", unit], "Could not disable Sunshine's duplicate startup.")
@@ -554,7 +556,7 @@ class Beam:
         if not self.firewall()["firewallReady"]:
             self.stock_function("open_ufw_ports", root=True)
         rows = self.processes()
-        if len(rows) > 1 or (rows and (apps_changed or browser_changed or not rows[0].get("browser", False))):
+        if len(rows) > 1 or (rows and (apps_changed or display_changed or browser_changed or not rows[0].get("browser", False))):
             self.stop_processes(rows)
             rows = []
         if not rows:
@@ -607,6 +609,7 @@ class Beam:
                 self.require(["systemctl", "--user", "disable", "--now", unit], "Could not stop Sunshine's service.", "undo")
             self.stop_processes(self.processes(), retry="undo")
             self.display.stop()
+            self.display.virtual.remove()
             self.require(["omarchy-remove-service-sunshine"], "Sunshine removal stopped.", "undo", 1800, True)
             self.browser.remove()
             # The stock remover leaves user credentials and pairings. Remove the
@@ -738,7 +741,7 @@ def fallback_status():
                 autostart=False, browserReady=False, ufwRules=0, ufwPresent=False, firewallReady=False, firewallKnown=False,
                 firewallState="unknown", adminUp=False, adminConfigured=False, adminKnown=False,
                 adminUrl="https://localhost:47990", displayFound=False, encoder="", encoderKind="unknown",
-                recommendedRes="Full / Safe Area · 60 fps", recommendedBitrate=20, pairedClients=0,
+                recommendedRes="Full · 60 fps", recommendedBitrate=20, pairedClients=0,
                 resolutionReady=False, resolutionActive=False, resolutionDetail="Use Repair to enable automatic iPad sizing.",
                 streaming=False, streamCount=0, locked=False, address="", addressKind="none", lanAddress="",
                 nextStep=2, ready=False, setupReady=False, qrAvailable=False, appStoreUrl=APP_STORE,
@@ -783,9 +786,17 @@ def main(argv=None):
             data = beam.moonlight()
         elif action == "copy-address":
             data = beam.copy_address()
+        elif action == "prepare-display":
+            beam.display.virtual.prepare()
+            data = result(True, action, "The iPad capture display is ready.")
+        elif action == "set-resolution":
+            fixed = beam.display.set_resolution(args[0] if args else "")
+            message = f"Desktop pinned to {fixed[0]}×{fixed[1]} at {fixed[2]} FPS." if fixed else "Desktop sizing follows Moonlight again."
+            detail = f"Set Moonlight Custom to {fixed[0]}×{fixed[1]}, then quit and relaunch the desktop." if fixed else "Choose Full in Moonlight, then quit and relaunch the desktop."
+            data = result(True, action, message, detail)
         elif action == "stream-start":
             session = beam.display.start()
-            data = result(True, action, "The desktop now fits Moonlight's requested size.",
+            data = result(True, action, "The desktop now uses Beam's selected stream size.",
                           requested=session["requested"], applied=session["applied"])
         elif action in ("stream-stop", "restore-display"):
             restored = beam.display.stop()

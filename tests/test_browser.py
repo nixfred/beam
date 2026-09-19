@@ -100,6 +100,30 @@ class BrowserTest(unittest.TestCase):
                 (config / "sunshine.conf").write_text("port = " + value + "\n")
                 self.assertEqual(admin_port(), expected)
 
+    def test_native_launcher_prepares_before_sunshine_and_blocks_on_failure(self):
+        self.bridge.install()
+        binaries = self.root / "native-bin"
+        binaries.mkdir()
+        marker = self.root / "prepared"
+        helper = binaries / "beam"
+        helper.write_text(f'#!{sys.executable}\nfrom pathlib import Path\nimport sys\n'
+                          'assert sys.argv[1:] == ["prepare-display"]\n'
+                          f'Path({str(marker)!r}).touch()\n')
+        sunshine = binaries / "sunshine"
+        sunshine.write_text(f'#!{sys.executable}\nfrom pathlib import Path\nimport json,sys\n'
+                            f'assert Path({str(marker)!r}).exists()\nprint(json.dumps(sys.argv[1:]))\n')
+        helper.chmod(0o700)
+        sunshine.chmod(0o700)
+        (self.bridge.directory.parent / "display-virtual.json").write_text(json.dumps(dict(entry=str(helper), output="BEAM-IPAD")))
+        env = dict(os.environ, PATH=str(binaries) + ":/usr/bin:/bin")
+        actual = json.loads(subprocess.check_output([self.bridge.launcher], env=env, text=True))
+        self.assertEqual(actual, ["output_name=BEAM-IPAD", "capture=wlr"])
+        helper.write_text(f'#!{sys.executable}\nraise SystemExit(1)\n')
+        result = subprocess.run([self.bridge.launcher], env=env, text=True, capture_output=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("could not prepare", result.stderr)
+        self.assertEqual(result.stdout, "")
+
     def test_launcher_record_rejects_reused_pid_or_old_start_time(self):
         self.bridge.install()
         record = self.bridge.directory / "process.json"
