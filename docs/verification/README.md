@@ -15,13 +15,15 @@ documentation address, supplied to the UI before native capture.
   startup repair, PID reuse rejection, and a real child-process notification route that restores the
   browser's original command search path. The native launcher test also checks that
   display preparation precedes capture and failure prevents a wrong-display launch.
-- Twenty-seven display regressions cover native and fallback mode selection, a
+- Twenty-nine display regressions cover native and fallback mode selection, a
   5120x1440 starting desktop, client dimension validation, preservation of
   Sunshine apps, mode rollback, multi-monitor selection, disconnect/crash
   recovery, rotated outputs, preservation of manual display changes, migration of
   the unmodified Desktop tile, preservation of customized/ambiguous desktop apps,
   fixed-mode persistence, a 720p client mismatch, scale restoration, returning to
   automatic sizing, and refusal to replace an unavailable fixed mode with a smaller one.
+  Client mismatch evidence survives disconnect, clears after a matching request,
+  stores only validated dimensions, and tolerates absent or malformed diagnostics.
 - Fourteen additional native-display regressions cover iPad pixel dimensions and readable
   scaling, exact sizing independent of EDID, durable rollback, failed recovery,
   manual changes, unplugged source recovery, newly opened workspaces, multiple
@@ -130,6 +132,21 @@ A 1920x1440 custom-size check also confirmed a full 1920x1440 workspace at scale
 1. These checks used synthetic client dimensions; the next physical connection
 must request 2732x2048 to verify final appearance. The last observed physical
 client had still requested 1280x720.
+
+## Borders on all four sides
+
+A physical iPad screenshot showed a 4:3 desktop inset on all four sides.
+The next live session and a user-requested webcam inspection confirmed the
+inset picture and a **1280x720 client request** against a
+**2732x2048 capture at 4/3 scale**. The compositor capture itself filled its
+frame. This is consistent with a 4:3 picture pillarboxed inside 16:9 video,
+which is then letterboxed onto the iPad. The matching Moonlight custom setting
+is still required; host dimensions alone do not establish video dimensions.
+
+Beam now retains the last validated client dimensions separately from recovery
+state, so the mismatch remains visible after the stream closes. The diagnostic
+contains no client identity, credentials, or other environment variables.
+62 Python tests, 7 JavaScript tests, manifest validation and whitespace checks pass.
 
 ## Remaining acceptance
 

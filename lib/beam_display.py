@@ -88,6 +88,7 @@ class DisplayFit:
         self.state = beam.state / "display-session.json"
         self.error = beam.state / "display-error.json"
         self.preferences = beam.state / "display-preferences.json"
+        self.last_request = beam.state / "display-last-request.json"
         self.virtual = VirtualDisplay(self)
 
     def fixed_size(self):
@@ -225,6 +226,15 @@ class DisplayFit:
                     detail = f"Desktop {current.get('pictureWidth', current['width'])}×{current.get('pictureHeight', current['height'])}. "
                     detail += ("Moonlight matches." if requested[:2] == list(fixed[:2]) else
                                f"Moonlight requests {requested[0]}×{requested[1]}; set {setting}.")
+                elif not active:
+                    # Keep the evidence visible after Sunshine's undo hook
+                    # removes the recovery session. This is diagnostic only.
+                    try:
+                        last = requested_size(load(self.last_request))
+                    except DisplayError:
+                        last = None
+                    if last and last[:2] != fixed[:2]:
+                        detail = f"Last stream requested {last[0]}×{last[1]}; set {setting}."
             return dict(resolutionReady=configured, resolutionActive=active, recommendedRes=text,
                         resolutionDetail=error or session.get("error", detail), resolutionError=error,
                         resolutionPinned=bool(fixed), moonlightSetting=setting, nativeResolution=native)
@@ -325,6 +335,9 @@ class DisplayFit:
             processes = self.beam.processes()
             if len(processes) != 1:
                 raise DisplayError("Automatic sizing requires one running Sunshine.")
+            # Store only validated dimensions, never the complete environment.
+            save(self.last_request, dict(zip(("SUNSHINE_CLIENT_WIDTH", "SUNSHINE_CLIENT_HEIGHT",
+                                               "SUNSHINE_CLIENT_FPS"), requested)))
             if self.virtual.enabled():
                 return self.virtual.start(requested, processes[0])
             monitor = self.monitor()

@@ -119,6 +119,29 @@ class DisplayTests(unittest.TestCase):
         self.fit.start(dict(self.request, SUNSHINE_CLIENT_WIDTH="2560", SUNSHINE_CLIENT_HEIGHT="1440"))
         self.assertIn("Moonlight matches", self.fit.status()["resolutionDetail"])
 
+    def test_client_mismatch_survives_disconnect_and_matching_reconnect_clears_it(self):
+        self.fit.set_resolution("2560x1440")
+        self.fit.start(dict(self.request, SUNSHINE_CLIENT_WIDTH="1280", SUNSHINE_CLIENT_HEIGHT="720",
+                            PRIVATE_VALUE="must not be saved"))
+        self.fit.stop()
+        self.assertFalse(self.fit.status()["resolutionActive"])
+        self.assertIn("Last stream requested 1280×720; set Custom 2560×1440", self.fit.status()["resolutionDetail"])
+        self.assertEqual(load(self.fit.last_request), dict(SUNSHINE_CLIENT_WIDTH=1280,
+                         SUNSHINE_CLIENT_HEIGHT=720, SUNSHINE_CLIENT_FPS=60))
+        self.fit.start(dict(self.request, SUNSHINE_CLIENT_WIDTH="2560", SUNSHINE_CLIENT_HEIGHT="1440"))
+        self.fit.stop()
+        self.assertNotIn("Last stream requested", self.fit.status()["resolutionDetail"])
+
+    def test_missing_or_corrupt_last_request_does_not_break_readiness(self):
+        self.fit.install()
+        self.fit.set_resolution("2560x1440")
+        for contents in (None, "{broken", '[]', '{"SUNSHINE_CLIENT_WIDTH": "invalid"}'):
+            with self.subTest(contents=contents):
+                if contents is not None:
+                    self.fit.last_request.write_text(contents)
+                self.assertTrue(self.fit.status()["resolutionReady"])
+                self.assertNotIn("Last stream requested", self.fit.status()["resolutionDetail"])
+
     def test_client_dimensions_are_validated_as_numbers(self):
         for value in ("$(touch /tmp/should-never-exist)", "0", "-1", "999999", "nan"):
             with self.subTest(value=value), self.assertRaises(DisplayError):

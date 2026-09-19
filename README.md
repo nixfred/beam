@@ -166,7 +166,8 @@ ultrawide monitor no longer forces a panoramic picture or a low-detail 4:3 fallb
 
 **Choose Full or a matching custom size on the iPad.** A 720p or fixed 16:9 request still produces
 that shape and can leave borders. Beam reports the actual request and scale;
-it cannot identify a disconnected iPad or change Moonlight's saved setting.
+with a fixed desktop size, it keeps a mismatched request visible after disconnect.
+It cannot identify a disconnected iPad or change Moonlight's saved setting.
 The local ultrawide can show side borders while mirroring the iPad-shaped desktop.
 The iPad stream is not stretched or cropped to hide an aspect-ratio mismatch.
 
@@ -207,6 +208,13 @@ The host retains every native pixel and the exact screen shape, while about
 **133% scaling** gives **2049×1536 logical workspace**. This makes controls
 smaller than the automatic 200% setting without returning to a 16:9 desktop.
 Invalid scales are rejected without changing the previous preference.
+
+**Black borders on all four sides?** A 4:3 desktop inside a 1280×720 stream
+gets side borders from Sunshine, then top and bottom borders when Moonlight
+fits that 16:9 video onto the iPad. Changing only the host resolution cannot
+fix both. Set the matching custom dimensions in Moonlight, quit the current
+session, and launch Desktop again. Beam's sizing details show what Moonlight
+actually requested, including the last mismatch after disconnect.
 
 Use `bin/omarchy-beam set-resolution auto` to return to native client sizing
 and automatic scaling.
