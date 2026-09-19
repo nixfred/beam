@@ -29,6 +29,9 @@ still in progress. [See exactly what has been tested.](docs/verification/README.
 
 ## Small dot. Full control.
 
+The desktop **and its sound** come through, including music playing on the host.
+Video and desktop audio have been confirmed together on a physical iPad.
+
 | Start from zero | Move like you know it |
 | :--- | :--- |
 | **Guided mode** breaks setup into six focused steps. Reopen Beam and land on the first unfinished one. | **Expert mode** puts status, connection details, both QR codes, and setup actions together. |
@@ -161,6 +164,11 @@ different during streaming. For multiple monitors, choose the desired connector
 in Sunshine's **Output Name** setting. Beam refuses an ambiguous selection.
 After changing Moonlight's resolution, quit the old session and reopen
 **Beam Desktop** so the new dimensions are supplied.
+
+If windows and text look oversized, check Moonlight's resolution setting. A
+**720p** request creates a 1280×720 desktop workspace; it does not identify the
+iPad's native screen size. Choose **Full / Safe Area**, then quit and relaunch
+the desktop. Beam shows both the requested size and the actual supported mode.
 
 Existing installations: run **Repair** once to add the Beam Desktop app. Other
 Sunshine apps are preserved. Keep the picture awake is enabled by default and

@@ -38,6 +38,12 @@ stream retained the 5120x1440 desktop. Setup now equips the unmodified Desktop t
 with the same preparation, foreground supervisor and undo hooks as Beam Desktop.
 Both paths still require a fresh launch after choosing the Moonlight resolution.
 
+A subsequent physical iPad launch of Beam Desktop sent **1280x720 at 60 FPS**.
+The preparation hook ran, saved the original 5120x1440 layout, and Hyprland and
+Sunshine both confirmed a 1280x720 desktop at scale 1 while streaming. This
+confirms real client-size negotiation and resizing. The user reported the UI
+looked oversized at 720p; Full/Safe Area quality remains to be checked.
+
 The host's Sunshine startup was migrated to the notification-browser helper with
 a backup. One running process, matching PID/start-time ownership, configured login,
 automatic sizing and setup readiness were verified afterward. Hyprland reload and
@@ -78,9 +84,10 @@ of continuing to capture an unintended size, preserving that newer layout.
 
 ## Remaining acceptance
 
-A physical iPad is still needed to check camera scanning, Sunshine login,
-pairing, Full/Safe Area requests, image quality, input, and a real streamed
-disconnect. The chosen fallback may have less detail or small borders when
+Physical iPad pairing, video, audio and a requested 720p resize are confirmed.
+Still needed: camera scanning, Full/Safe Area requests, image quality, input,
+and restoration after a real resized stream disconnects.
+The chosen fallback may have less detail or small borders when
 the physical monitor cannot display the requested native size.
 
 After changing Moonlight's resolution, quit the existing session and launch
