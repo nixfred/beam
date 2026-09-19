@@ -24,10 +24,10 @@ import uuid
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from beam_display import DisplayError, DisplayFit
+from beam_browser import BrowserBridge, admin_port
 
 APP_STORE = "https://apps.apple.com/app/id1000551566"
 UNITS = ("app-dev.lizardbyte.app.Sunshine.service", "sunshine.service")
-AUTOSTART = 'o.launch_on_start("sunshine")'
 PRIVILEGED = {"install", "repair", "ports", "undo"}
 PORTS = {"tcp": (47984, 47989, 48010), "udp": (5353, 47998, 47999, 48000, 48002, 48010)}
 PRIVATE_CIDRS = ("10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16")
@@ -244,6 +244,7 @@ class Beam:
         self.etc = Path(etc or "/etc")
         self.entry = Path(__file__).resolve().parent.parent / "bin/omarchy-beam"
         self.autostart = self.home / ".config/hypr/autostart.lua"
+        self.browser = BrowserBridge(self.state, self.autostart)
         self.display = DisplayFit(self)
 
     def run(self, args, **kwargs):
@@ -285,7 +286,8 @@ class Beam:
             except (ValueError, IndexError):
                 continue
             started = time.time() - uptime + int(identity) / os.sysconf("SC_CLK_TCK")
-            rows.append(dict(pid=pid, identity=identity, started=started, display=display))
+            rows.append(dict(pid=pid, identity=identity, started=started, display=display,
+                             browser=name == "sunshine" and self.browser.owns_process(pid, identity)))
         return rows
 
     def units(self):
@@ -415,12 +417,7 @@ class Beam:
     def status(self):
         procs = self.processes()
         values = self.config_values()
-        try:
-            port = int(values.get("port", "47989")) + 1
-        except ValueError:
-            port = 47990
-        if not 1024 <= port <= 65535:
-            port = 47990
+        port = admin_port(self.config)
         log = Path(values.get("log_path", "sunshine.log"))
         if not log.is_absolute():
             log = self.sun / log
@@ -435,7 +432,8 @@ class Beam:
         up, configured, admin_known = self.system.admin(port) if procs else (False, False, False)
         s = dict(installed=installed, version=version.strip().removeprefix("sunshine "), running=bool(procs), processes=len(procs),
                  unit=units[0][0] if units else "", unitEnabled=any(u[1] for u in units),
-                 autostart=AUTOSTART in read_text(self.autostart).splitlines(),
+                 autostart=self.browser.ready(),
+                 browserReady=len(procs) == 1 and procs[0].get("browser", False),
                  adminUp=up, adminConfigured=configured, adminKnown=admin_known, adminUrl=f"https://localhost:{port}",
                  pairedClients=clients, locked=bool(self.processes("hyprlock")),
                  qrAvailable=self.system.have("qrencode"), appStoreUrl=APP_STORE,
@@ -448,20 +446,20 @@ class Beam:
         s["encoderKind"] = "unknown" if not s["encoder"] else "hardware" if re.search(r"vaapi|nvenc|qsv|amf|videotoolbox", s["encoder"], re.I) else "software"
         s.update(self.display.status())
         s["recommendedBitrate"] = 40 if s["encoderKind"] == "hardware" else 20
-        s["setupReady"] = all((installed, len(procs) == 1, s["autostart"], not s["unitEnabled"], s["firewallReady"], s["displayFound"], bool(s["encoder"]), up, s["inputReady"], s["resolutionReady"]))
+        s["setupReady"] = all((installed, len(procs) == 1, s["autostart"], s["browserReady"], not s["unitEnabled"], s["firewallReady"], s["displayFound"], bool(s["encoder"]), up, s["inputReady"], s["resolutionReady"]))
         s["nextStep"] = 2 if not s["setupReady"] else 4 if not configured else 5 if not clients else 6
         s["ready"] = s["setupReady"] and configured and clients > 0 and bool(s["address"]) and not s["locked"]
         s["actionBusy"] = bool(s["lastAction"].get("busy"))
         s["checks"] = [dict(key=k, label=label, ok=bool(ok), state="ok" if ok else "attention") for k, label, ok in (
             ("installed", "Sunshine installed", installed), ("firewall", "Streaming ports", s["firewallReady"]),
-            ("autostart", "One startup method", s["autostart"] and not s["unitEnabled"]),
+            ("autostart", "Startup + pairing browser", s["autostart"] and s["browserReady"] and not s["unitEnabled"]),
             ("running", "One Sunshine running", len(procs) == 1), ("display", "Display + iPad sizing", s["displayFound"] and s["resolutionReady"]))]
         issues = []
         def issue(code, message, action="", detail=""):
             issues.append(dict(code=code, message=message, action=action, detail=detail))
         if not installed:
             issue("missing", "Install Sunshine on this computer.", "install")
-        elif len(procs) != 1 or not s["autostart"] or s["unitEnabled"]:
+        elif len(procs) != 1 or not s["autostart"] or not s["browserReady"] or s["unitEnabled"]:
             issue("startup", "Finish this computer's setup.", "repair")
         if installed and not s["firewallReady"]:
             issue("firewall", "Streaming ports need checking." if not s["firewallKnown"] else "Streaming ports are incomplete.", "ports")
@@ -517,6 +515,9 @@ class Beam:
         prefix = "\n".join(lines[:stop])
         if not re.search(r"^" + re.escape(function) + r"\(\)\s*\{", prefix, re.M):
             raise Failure("Omarchy's Sunshine action is unavailable.", "Update Beam and Omarchy, then retry.")
+        if function == "install_admin_webapp":
+            prefix += f"\nSUNSHINE_ADMIN_URL=https://localhost:{admin_port(self.config)}\n"
+            prefix += 'SUNSHINE_ADMIN_EXEC="omarchy-launch-browser --private $SUNSHINE_ADMIN_URL"\n'
         with tempfile.TemporaryDirectory(prefix="beam-stock-") as directory:
             path = Path(directory) / "action.sh"
             path.write_text(prefix + "\n" + function + "\n")
@@ -548,19 +549,20 @@ class Beam:
         for unit, enabled in self.units():
             if enabled:
                 self.require(["systemctl", "--user", "disable", "--now", unit], "Could not disable Sunshine's duplicate startup.")
-        if AUTOSTART not in read_text(self.autostart).splitlines():
-            self.stock_function("enable_hyprland_autostart")
+        browser_changed = self.browser.install()
         self.stock_function("install_admin_webapp")
         if not self.firewall()["firewallReady"]:
             self.stock_function("open_ufw_ports", root=True)
         rows = self.processes()
-        if len(rows) > 1 or (rows and apps_changed):
+        if len(rows) > 1 or (rows and (apps_changed or browser_changed or not rows[0].get("browser", False))):
             self.stop_processes(rows)
             rows = []
         if not rows:
             self.cache.mkdir(parents=True, exist_ok=True, mode=0o700)
             with (self.cache / "launch.log").open("wb") as output:
-                command = ["uwsm-app", "--", "sunshine"] if self.system.have("uwsm-app") else ["sunshine"]
+                command = [str(self.browser.launcher)]
+                if self.system.have("uwsm-app"):
+                    command = ["uwsm-app", "--", *command]
                 self.system.spawn(command, output=output)
         end = time.monotonic() + 12
         while time.monotonic() < end:
@@ -569,7 +571,7 @@ class Beam:
             time.sleep(0.3)
         if len(self.processes()) != 1:
             raise Failure("Sunshine could not start.", "Open Sunshine's log from its admin page or retry Repair.")
-        if AUTOSTART not in read_text(self.autostart).splitlines():
+        if not self.browser.ready():
             raise Failure("Sunshine startup was not saved.", "Retry Repair after checking the terminal error.")
         if not self.firewall()["firewallReady"]:
             raise Failure("Streaming ports could not be verified.", "Retry Ports in the setup terminal.", "ports")
@@ -606,6 +608,7 @@ class Beam:
             self.stop_processes(self.processes(), retry="undo")
             self.display.stop()
             self.require(["omarchy-remove-service-sunshine"], "Sunshine removal stopped.", "undo", 1800, True)
+            self.browser.remove()
             # The stock remover leaves user credentials and pairings. Remove the
             # default app config only, after the user has confirmed this in QML.
             if self.sun.is_symlink():
@@ -732,7 +735,7 @@ class Beam:
 
 def fallback_status():
     return dict(installed=False, running=False, processes=0, version="", unit="", unitEnabled=False,
-                autostart=False, ufwRules=0, ufwPresent=False, firewallReady=False, firewallKnown=False,
+                autostart=False, browserReady=False, ufwRules=0, ufwPresent=False, firewallReady=False, firewallKnown=False,
                 firewallState="unknown", adminUp=False, adminConfigured=False, adminKnown=False,
                 adminUrl="https://localhost:47990", displayFound=False, encoder="", encoderKind="unknown",
                 recommendedRes="Full / Safe Area · 60 fps", recommendedBitrate=20, pairedClients=0,

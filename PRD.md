@@ -228,7 +228,15 @@ no user unit and the Hyprland autostart line is the only launcher.
 `sudo -n ufw status`. Use `-n`: a status check must never block on a password prompt. No `ufw`
 at all is a valid state, not a failure.
 
-**Autostart.** `grep -Fxq 'o.launch_on_start("sunshine")' ~/.config/hypr/autostart.lua`.
+**Autostart.** Repair migrates the stock `o.launch_on_start("sunshine")` line to
+a marked launcher in Beam's private state directory, preserving other startup
+commands and saving the original file. Readiness checks the managed line, helper
+contents and the running process's recorded PID/start-time identity. The launcher scopes an
+`xdg-open` override to Sunshine so its pairing notification uses the same private
+browser session as Beam's buttons. Only local Sunshine HTTPS pages are routed;
+other links use the standard opener, and global browser preferences are untouched.
+Removal deletes the managed startup line. The standalone helper survives removal
+of the panel plugin itself.
 
 **Admin login exists.** A `username` line with a non-empty value in
 `~/.config/sunshine/sunshine.conf`. Never read the password field.

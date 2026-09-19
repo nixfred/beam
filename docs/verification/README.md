@@ -6,9 +6,14 @@ documentation address, supplied to the UI before native capture.
 
 ## Automated checks
 
-- Eight backend regressions cover firewall readiness, log freshness, notification
+- Ten backend regressions cover firewall readiness, log freshness, notification
   routing, exited-child handling during removal, and shared private-browser Admin/PIN
-  launches with fallback and error reporting.
+  launches with fallback and error reporting, plus running-process migration and
+  refusal to restart an active stream.
+- Eight browser regressions cover local-origin matching, unrelated-link fallback,
+  custom ports, idempotent startup migration, backup preservation, removal, duplicate
+  startup repair, PID reuse rejection, and a real child-process notification route that restores the
+  browser's original command search path.
 - Eighteen display regressions cover native and fallback mode selection, a
   5120x1440 starting desktop, client dimension validation, preservation of
   Sunshine apps, mode rollback, multi-monitor selection, disconnect/crash
@@ -25,6 +30,13 @@ git diff --check
 ```
 
 ## Live checks
+
+The host's Sunshine startup was migrated to the notification-browser helper with
+a backup. One running process, matching PID/start-time ownership, configured login,
+automatic sizing and setup readiness were verified afterward. Hyprland reload and
+configuration validation passed. The login and pairing panels fit the 5120x1440
+host. Clicking a new physical-device pairing notification still needs user
+confirmation; neither a web PIN acknowledgement nor these checks prove pairing.
 
 An isolated Omarchy 4.0.2 / Hyprland 0.56.2 VM was used for clean Sunshine
 installation and removal. Installation recovered from the packaged service-name

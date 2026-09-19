@@ -116,6 +116,31 @@ class BackendTest(unittest.TestCase):
             spawn.side_effect = OSError("browser unavailable")
             self.assertFalse(self.beam.open_admin()["ok"])
 
+    def test_repair_migrates_running_sunshine_to_notification_browser(self):
+        self.system.have = lambda name: name == "sunshine"
+        self.beam.status = lambda: {"streaming": False}
+        self.beam.units = lambda: []
+        self.beam.firewall = lambda: {"firewallReady": True}
+        old = [dict(pid=123, identity="1", browser=False)]
+        current = [dict(pid=456, identity="2", browser=True)]
+        with patch.object(self.beam.display, "install", return_value=False), \
+                patch.object(self.beam, "stock_function"), \
+                patch.object(self.beam, "stop_processes") as stop, \
+                patch.object(self.beam, "processes", side_effect=[old, current, current]), \
+                patch.object(self.system, "spawn", create=True) as spawn:
+            self.beam.repair()
+            stop.assert_called_once_with(old)
+            self.assertEqual(spawn.call_args.args[0], [str(self.beam.browser.launcher)])
+            self.assertTrue(self.beam.browser.ready())
+
+    def test_repair_refuses_to_restart_an_active_stream(self):
+        self.system.have = lambda name: name == "sunshine"
+        self.beam.status = lambda: {"streaming": True}
+        with patch.object(self.beam, "stop_processes") as stop:
+            with self.assertRaises(beam.Failure):
+                self.beam.repair()
+            stop.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()
