@@ -382,13 +382,21 @@ it. It gets its own PR against Omarchy that fixes the unit name, independent of 
 Beam still ships its repair path regardless, because users will be on unpatched versions for
 months.
 
-## 13. On the prototype that is not in this repo
+## 13. The prototype in this repo
 
-A working first cut was written while this PRD was being drafted: the full CLI, four QML files
-and the manifest. It was deliberately **deleted** so that this build starts clean from the
-spec rather than inheriting a sketch.
+`prototype/` holds a working first cut written while this PRD was being drafted: the full CLI,
+four QML files and the manifest. It was removed at one point and then restored on request, so
+it is here on purpose.
 
-Nothing was lost by deleting it. Everything it proved is written down here: the JSON contract
-in section 6, the detection recipes in section 6.4, the `pgrep -c` bug in section 4, and the
-QML gotchas in section 9. It is recoverable from commit `29cb14c` if a question ever comes up
-that this document does not answer, but the intent is that it never needs to be.
+**Its status is reference, not gospel, and the PRD still wins wherever they disagree.** The
+build called for is a clean one from this spec: read the prototype to see how something was
+done, do not copy it wholesale.
+
+The two halves are not equally trustworthy:
+
+- **`prototype/bin/omarchy-beam` has been run.** Its JSON validates under `jq -e`, `doctor`
+  runs clean, and a real bug was found and fixed in it by executing it (the `pgrep -c` issue
+  in section 4). Everything it proved is also written down in sections 4, 6 and 6.4, so the
+  spec stands alone without it.
+- **The QML has never been loaded into a shell.** It is a sketch of the layout and nothing
+  more. Treat every line of it as unverified.
