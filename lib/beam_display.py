@@ -98,12 +98,33 @@ class DisplayFit:
         path = Path(self.beam.config_values().get("file_apps", "apps.json"))
         return path if path.is_absolute() else self.beam.sun / path
 
-    def app(self):
+    def app(self, name=APP_NAME):
         command = shlex.quote(str(self.beam.entry)).replace("$", "$$")
-        return {"name": APP_NAME, "beam-managed": 1, "image-path": "desktop.png",
+        return {"name": name, "beam-managed": 1, "image-path": "desktop.png",
                 "cmd": command + " stream-session", "auto-detach": False,
                 "wait-all": False, "exit-timeout": 5,
                 "prep-cmd": [{"do": command + " stream-start", "undo": command + " stream-stop", "elevated": False}]}
+
+    def configured_apps(self, apps):
+        matches = [a for a in apps if isinstance(a, dict) and a.get("name") == APP_NAME]
+        if len(matches) > 1 or (matches and matches[0].get("beam-managed") != 1):
+            raise DisplayError("An existing app already uses the name Beam Desktop.", "Rename that app in Sunshine, then retry Repair.")
+        desktops = [a for a in apps if isinstance(a, dict) and a.get("name") == "Desktop"]
+        output = []
+        for app in apps:
+            if isinstance(app, dict) and app.get("name") == APP_NAME:
+                output.append(self.app())
+            elif (len(desktops) == 1 and app is desktops[0]
+                  and (app.get("beam-managed") == 1 or app in (
+                      {"name": "Desktop"}, {"name": "Desktop", "image-path": "desktop.png"}))):
+                # The stock tile is the obvious first choice in Moonlight.
+                # Give it the same lifecycle without changing customized apps.
+                output.append(self.app("Desktop"))
+            else:
+                output.append(app)
+        if not matches:
+            output.append(self.app())
+        return output
 
     def install(self):
         path = self.app_path()
@@ -113,23 +134,21 @@ class DisplayFit:
         data = load(path, default)
         if not isinstance(data, dict) or not isinstance(data.get("apps"), list):
             raise DisplayError("Sunshine's app list is invalid.", "The existing app list was left unchanged.")
-        expected = self.app()
-        matches = [a for a in data["apps"] if isinstance(a, dict) and a.get("name") == APP_NAME]
-        if len(matches) > 1 or (matches and matches[0].get("beam-managed") != 1):
-            raise DisplayError("An existing app already uses the name Beam Desktop.", "Rename that app in Sunshine, then retry Repair.")
-        if matches == [expected]:
+        expected = self.configured_apps(data["apps"])
+        if data["apps"] == expected:
             return False
         if path.exists():
             backup = self.beam.state / ("apps-before-sizing-" + time.strftime("%Y%m%d-%H%M%S") + "-" + uuid.uuid4().hex[:6] + ".json")
             save(backup, data)
-        data["apps"] = [a for a in data["apps"] if not (isinstance(a, dict) and a.get("name") == APP_NAME)] + [expected]
+        data["apps"] = expected
         save(path, data)
         return True
 
     def status(self):
         try:
             data = load(self.app_path())
-            configured = isinstance(data, dict) and self.app() in data.get("apps", [])
+            apps = data.get("apps") if isinstance(data, dict) else None
+            configured = isinstance(apps, list) and apps == self.configured_apps(apps)
             session = load(self.state)
             if not isinstance(session, dict):
                 raise DisplayError("The saved display session is invalid.")

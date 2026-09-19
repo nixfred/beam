@@ -14,10 +14,11 @@ documentation address, supplied to the UI before native capture.
   custom ports, idempotent startup migration, backup preservation, removal, duplicate
   startup repair, PID reuse rejection, and a real child-process notification route that restores the
   browser's original command search path.
-- Eighteen display regressions cover native and fallback mode selection, a
+- Twenty-one display regressions cover native and fallback mode selection, a
   5120x1440 starting desktop, client dimension validation, preservation of
   Sunshine apps, mode rollback, multi-monitor selection, disconnect/crash
-  recovery, rotated outputs, and preservation of manual display changes.
+  recovery, rotated outputs, preservation of manual display changes, migration of
+  the unmodified Desktop tile, and preservation of customized/ambiguous desktop apps.
 - Seven service-state tests cover stale/malformed status, action queues,
   terminal progress, error recovery, and idle-inhibitor eligibility.
 - The Omarchy manifest validator and whitespace checks pass.
@@ -30,6 +31,12 @@ git diff --check
 ```
 
 ## Live checks
+
+The user confirmed physical iPad pairing, desktop video and audio. Sunshine's log
+showed `Executing [Desktop]`, with no Beam sizing session, explaining why that first
+stream retained the 5120x1440 desktop. Setup now equips the unmodified Desktop tile
+with the same preparation, foreground supervisor and undo hooks as Beam Desktop.
+Both paths still require a fresh launch after choosing the Moonlight resolution.
 
 The host's Sunshine startup was migrated to the notification-browser helper with
 a backup. One running process, matching PID/start-time ownership, configured login,

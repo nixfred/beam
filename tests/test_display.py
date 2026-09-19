@@ -98,6 +98,38 @@ class DisplayTests(unittest.TestCase):
             self.fit.install()
         self.assertEqual(load(self.fit.app_path()), original)
 
+    def test_stock_desktop_also_runs_resize_and_recovery(self):
+        original = {"env": {}, "apps": [{"name": "Desktop", "image-path": "desktop.png"}, self.fit.app()]}
+        save(self.fit.app_path(), original)
+        self.assertFalse(self.fit.status()["resolutionReady"])
+        self.assertTrue(self.fit.install())
+        apps = load(self.fit.app_path())["apps"]
+        self.assertEqual(apps[0], dict(apps[1], name="Desktop"))
+        self.assertIn("stream-start", apps[0]["prep-cmd"][0]["do"])
+        self.assertIn("stream-stop", apps[0]["prep-cmd"][0]["undo"])
+        self.assertFalse(self.fit.install())
+        self.assertTrue(self.fit.status()["resolutionReady"])
+        backups = list(self.beam.state.glob("apps-before-sizing-*.json"))
+        self.assertEqual(len(backups), 1)
+        self.assertEqual(load(backups[0]), original)
+
+    def test_custom_desktop_commands_and_settings_are_preserved(self):
+        for custom in ({"name": "Desktop", "cmd": "my-desktop"},
+                       {"name": "Desktop", "prep-cmd": [{"do": "custom"}]},
+                       {"name": "Desktop", "image-path": "custom.png"},
+                       {"name": "Desktop", "exclude-global-prep-cmd": True}):
+            with self.subTest(custom=custom):
+                save(self.fit.app_path(), {"apps": [custom]})
+                self.fit.install()
+                self.assertEqual(load(self.fit.app_path())["apps"][0], custom)
+                self.assertTrue(self.fit.status()["resolutionReady"])
+
+    def test_ambiguous_desktop_names_are_preserved(self):
+        apps = [{"name": "Desktop"}, {"name": "Desktop", "cmd": "custom"}]
+        save(self.fit.app_path(), {"apps": apps})
+        self.fit.install()
+        self.assertEqual(load(self.fit.app_path())["apps"][:2], apps)
+
     def test_corrupt_app_config_is_not_overwritten(self):
         self.fit.app_path().parent.mkdir(parents=True)
         self.fit.app_path().write_text("{broken")

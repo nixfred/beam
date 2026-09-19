@@ -136,6 +136,10 @@ keep their normal browser behavior. Your global browser settings stay as they ar
 A **5120×1440** desktop should not become a tiny panoramic strip on your iPad.
 Beam's **Beam Desktop** app in Sunshine receives the width, height, and frame
 rate requested by Moonlight before streaming begins.
+Setup also adds the same sizing and recovery to Sunshine's unmodified **Desktop**
+tile, so either desktop entry fits the client. Existing customized apps stay intact.
+If updating an older Beam setup, quit the stream and run **Repair** once to enable
+sizing on the default tile.
 
 1. In Moonlight on the iPad, set resolution to **Full** or **Safe Area**, and
    start with **60 FPS**. Those choices use the iPad screen size; Beam cannot
@@ -210,7 +214,7 @@ omarchy plugin remove nixfred.beam
 
 | Verified locally | Evidence |
 | :--- | :--- |
-| **43 regression tests** | Ten backend, eight browser-routing, eighteen sizing/recovery, and seven service-state tests. |
+| **46 regression tests** | Ten backend, eight browser-routing, twenty-one sizing/recovery, and seven service-state tests. |
 | **Clean VM install and removal** | One running Sunshine after install; zero processes and zero streaming rules after removal. |
 | **No-scroll layouts** | All six guided steps, Expert, long errors, and confirmation at 1280×800; normal views on a 5120×1440 host. |
 | **Dark and light QR codes** | Both codes decoded from captured screens with software. |
