@@ -28,7 +28,7 @@ Ui.Panel {
         })
     readonly property bool fresh: !!(svc && svc.statusFresh)
     readonly property bool hostReady: !!(svc && svc.installed && svc.running && svc.processes === 1 && svc.autostart && !svc.unitEnabled && svc.displayFound)
-    readonly property string streamTitle: !fresh ? "Checking this desktop" : svc.streaming ? "Your desktop is live" : svc.allReady ? "Ready for your iPad" : "Let's get you connected"
+    readonly property string streamTitle: !svc || !fresh ? "Checking this desktop" : svc.streaming ? "Your desktop is live" : svc.allReady ? "Ready for your iPad" : "Let's get you connected"
     property bool expertMode: false
     property int stepNumber: 2
     property bool initialized: false
@@ -63,11 +63,11 @@ Ui.Panel {
                 panel.initialStep();
         }
         function onAdminConfiguredChanged() {
-            if (panel.opened && !panel.expertMode && panel.stepNumber === 4 && panel.svc.adminConfigured)
+            if (panel.svc && panel.opened && !panel.expertMode && panel.stepNumber === 4 && panel.svc.adminConfigured)
                 panel.setStep(5);
         }
         function onPairedClientsChanged() {
-            if (panel.opened && !panel.expertMode && panel.stepNumber === 5 && panel.svc.pairedClients > 0)
+            if (panel.svc && panel.opened && !panel.expertMode && panel.stepNumber === 5 && panel.svc.pairedClients > 0)
                 panel.setStep(6);
         }
     }
@@ -78,7 +78,7 @@ Ui.Panel {
             ipadConfirmed = true;
         setStep(stepNumber + 1);
     }
-    readonly property bool canContinue: stepNumber === 1 || stepNumber === 3 || stepNumber === 6 || (fresh && (stepNumber === 2 ? hostReady : stepNumber === 4 ? svc.adminConfigured : stepNumber === 5 ? svc.pairedClients > 0 : true))
+    readonly property bool canContinue: stepNumber === 1 || stepNumber === 3 || stepNumber === 6 || (svc && fresh && (stepNumber === 2 ? hostReady : stepNumber === 4 ? svc.adminConfigured : stepNumber === 5 ? svc.pairedClients > 0 : true))
     function primaryAction() {
         if (!svc || svc.busy)
             return;
@@ -534,7 +534,7 @@ Ui.Panel {
                             Layout.fillWidth: true
                             text: panel.primaryLabel
                             prominent: true
-                            enabled: panel.fresh && !svc.busy
+                            enabled: !!svc && panel.fresh &&!svc.busy
                             onClicked: panel.primaryAction()
                         }
                         GridLayout {
@@ -545,38 +545,38 @@ Ui.Panel {
                             ActionButton {
                                 Layout.fillWidth: true
                                 text: "Install"
-                                enabled: panel.fresh && !svc.busy && !svc.installed
+                                enabled: !!svc && panel.fresh &&!svc.busy && !svc.installed
                                 onClicked: svc.installInTerminal()
                             }
                             ActionButton {
                                 Layout.fillWidth: true
                                 text: "Repair"
-                                enabled: panel.fresh && !svc.busy && svc.installed
+                                enabled: !!svc && panel.fresh &&!svc.busy && svc.installed
                                 onClicked: svc.repair()
                             }
                             ActionButton {
                                 Layout.fillWidth: true
                                 text: "Ports"
-                                enabled: panel.fresh && !svc.busy && svc.installed
+                                enabled: !!svc && panel.fresh &&!svc.busy && svc.installed
                                 onClicked: svc.ports()
                             }
                             ActionButton {
                                 Layout.fillWidth: true
                                 text: "Admin"
-                                enabled: panel.fresh && !svc.busy && svc.adminUp
+                                enabled: !!svc && panel.fresh &&!svc.busy && svc.adminUp
                                 onClicked: svc.admin()
                             }
                             ActionButton {
                                 Layout.fillWidth: true
                                 text: "PIN page"
-                                enabled: panel.fresh && !svc.busy && svc.adminConfigured && svc.adminUp
+                                enabled: !!svc && panel.fresh &&!svc.busy && svc.adminConfigured && svc.adminUp
                                 onClicked: svc.pinPage()
                             }
                             ActionButton {
                                 Layout.fillWidth: true
                                 text: "Remove"
                                 danger: true
-                                enabled: panel.fresh && !svc.busy && svc.installed
+                                enabled: !!svc && panel.fresh &&!svc.busy && svc.installed
                                 onClicked: panel.removeConfirmation = !panel.removeConfirmation
                             }
                         }
@@ -611,7 +611,7 @@ Ui.Panel {
                                     Layout.fillWidth: true
                                     text: "Remove Sunshine"
                                     danger: true
-                                    enabled: !svc.busy
+                                    enabled: !!svc && panel.fresh &&!svc.busy
                                     onClicked: {
                                         panel.removeConfirmation = false;
                                         svc.undo();
@@ -815,7 +815,7 @@ Ui.Panel {
                         Layout.fillWidth: true
                         text: panel.hostReady ? "Check again" : panel.primaryLabel
                         prominent: true
-                        enabled: panel.fresh && !svc.busy
+                        enabled: !!svc && panel.fresh &&!svc.busy
                         onClicked: panel.hostReady ? svc.refresh() : panel.primaryAction()
                     }
                     Caption {
@@ -899,7 +899,7 @@ Ui.Panel {
                         Layout.fillWidth: true
                         text: "Open Sunshine admin"
                         prominent: true
-                        enabled: panel.fresh && svc.adminUp && !svc.busy
+                        enabled: !!svc && panel.fresh &&svc.adminUp && !svc.busy
                         onClicked: svc.admin()
                     }
                     Check {
@@ -981,7 +981,7 @@ Ui.Panel {
                     ActionButton {
                         text: "Open PIN page"
                         prominent: true
-                        enabled: panel.fresh && panel.connectionAddress !== "" && svc.adminUp && svc.adminConfigured && !svc.busy
+                        enabled: !!svc && panel.fresh &&panel.connectionAddress !== "" && svc.adminUp && svc.adminConfigured && !svc.busy
                         onClicked: svc.pinPage()
                     }
                     Caption {

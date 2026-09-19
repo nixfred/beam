@@ -68,8 +68,10 @@ Item {
         if (statusMessage) return statusMessage
         if (streaming && locked) return "Unlock this computer to show its desktop."
         if (processes > 1) return "More than one Sunshine process is running. Open Repair."
-        if (issues.length > 0) {
-            var issue = issues[0]
+        for (var i = 0; i < issues.length; i++) {
+            var issue = issues[i]
+            var code = typeof issue === "string" ? "" : String(issue.code || "")
+            if (code === "missing" || code === "qr") continue
             return typeof issue === "string" ? issue : String(issue.message || issue.detail || issue.label || "Setup needs attention.")
         }
         return ""
@@ -90,7 +92,8 @@ Item {
             now = lastSuccess
             pollError = ""
             ready = true
-            if (data.lastAction && State.actionTime(data.lastAction) >= actionRequestedAt) {
+            var actionAt = State.actionTime(data.lastAction)
+            if (actionAt > 0 && actionAt >= actionRequestedAt) {
                 actionReport = State.report(data.lastAction)
                 terminalPending = data.actionBusy === true
             }
