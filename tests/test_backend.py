@@ -73,6 +73,15 @@ class BackendTest(unittest.TestCase):
                 for cidr in beam.PRIVATE_CIDRS:
                     self.system.firewall_output += f"{port}/{proto} ALLOW IN {cidr} # omarchy-sunshine\n"
         self.assertTrue(self.beam.firewall()["firewallReady"])
+
+    def test_headless_capture_backend_is_added_without_overwriting_choice(self):
+        self.beam.sun.mkdir(parents=True)
+        self.assertTrue(self.beam.ensure_wlroots_capture())
+        self.assertEqual(self.beam.config_values().get("capture"), None)
+        self.assertIn("capture = wlr", (self.beam.sun / "sunshine.conf").read_text())
+        (self.beam.sun / "sunshine.conf").write_text("capture = portal\n")
+        self.assertFalse(self.beam.ensure_wlroots_capture())
+        self.assertEqual((self.beam.sun / "sunshine.conf").read_text(), "capture = portal\n")
         self.system.firewall_output = "Status: inactive\n"
         self.assertTrue(self.beam.firewall()["firewallReady"])
 
