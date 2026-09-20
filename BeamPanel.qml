@@ -560,7 +560,9 @@ Ui.Panel {
                             text: panel.settingsText()
                         }
                         ActionButton {
-                            visible: !!svc && svc.resolutionActive
+                            // The stranded case is offered in every view by the
+                            // issue box above. This stays for stopping a live one.
+                            visible: !!svc && svc.resolutionActive && !issueBox.stranded
                             text: "Restore display"
                             enabled: !!svc && panel.fresh && !svc.busy
                             onClicked: svc.restoreDisplay()
@@ -663,20 +665,40 @@ Ui.Panel {
                 }
                 Rectangle {
                     id: issueBox
-                    visible: !!(svc && (svc.warning || !svc.statusFresh))
+                    // A stream size left applied after the stream ended must be
+                    // undoable from wherever the user is standing, not only from
+                    // Expert. The instruction and its button live together.
+                    readonly property bool warned: !!(svc && (svc.warning || !svc.statusFresh))
+                    readonly property bool stranded: !!(svc && svc.resolutionActive && !svc.streaming && panel.fresh)
+                    visible: warned || stranded
                     Layout.fillWidth: true
-                    implicitHeight: issueText.implicitHeight + 18
+                    implicitHeight: Math.max(issueText.implicitHeight, restoreStranded.visible ? restoreStranded.implicitHeight : 0) + 18
                     radius: 6
-                    color: Util.alpha(Color.urgent, 0.07)
+                    color: Util.alpha(issueBox.warned ? Color.urgent : panel.foreground, 0.07)
                     border.width: 1
-                    border.color: Util.alpha(Color.urgent, 0.35)
-                    Caption {
-                        id: issueText
+                    border.color: Util.alpha(issueBox.warned ? Color.urgent : panel.foreground, 0.3)
+                    RowLayout {
                         x: 10
                         y: 9
                         width: parent.width - 20
-                        text: svc ? (!svc.statusFresh ? (svc.statusMessage || "Checking fresh status. Actions resume when this computer responds.") : svc.warning) : ""
-                        color: panel.foreground
+                        height: parent.height - 18
+                        spacing: 12
+                        Caption {
+                            id: issueText
+                            Layout.fillWidth: true
+                            Layout.alignment: Qt.AlignVCenter
+                            text: !svc ? "" : !svc.statusFresh ? (svc.statusMessage || "Checking fresh status. Actions resume when this computer responds.") : svc.warning ? svc.warning : "Beam's stream size is still applied to this display."
+                            color: panel.foreground
+                        }
+                        ActionButton {
+                            id: restoreStranded
+                            Layout.fillWidth: false
+                            Layout.alignment: Qt.AlignVCenter
+                            visible: issueBox.stranded
+                            text: "Restore display"
+                            enabled: !!svc && panel.fresh && !svc.busy
+                            onClicked: svc.restoreDisplay()
+                        }
                     }
                 }
                 Card {
