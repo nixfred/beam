@@ -271,7 +271,7 @@ omarchy plugin remove nixfred.beam
 
 | Verified locally | Evidence |
 | :--- | :--- |
-| **102 regression tests** | Ninety-five Python checks, including real Qt timeout and QR recovery tests, plus seven service-state checks. |
+| **103 regression tests** | Ninety-six Python checks, including real Qt timeout and QR recovery tests, plus seven service-state checks. |
 | **Independent Kimi3 and Grok audits** | Adversarial baseline probes, reviewed findings and fixes. [Audit reports and replay commands](docs/audits/2026-09-19/README.md). |
 | **Clean VM install and removal** | One running Sunshine after install; zero processes and zero streaming rules after removal. |
 | **No-scroll layouts** | All six guided steps, Expert, long errors, and confirmation at 1280×800; normal views on a 5120×1440 host. |

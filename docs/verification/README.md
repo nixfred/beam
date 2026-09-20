@@ -6,7 +6,7 @@ documentation address, supplied to the UI before native capture.
 
 ## Automated checks
 
-- Twenty-five backend regressions cover firewall readiness, log freshness, notification
+- Twenty-six backend regressions cover firewall readiness, log freshness, notification
   routing, exited-child handling during removal, and shared private-browser Admin/PIN
   launches with fallback and error reporting, plus running-process migration and
   refusal to restart an active stream.
@@ -214,7 +214,7 @@ establish what has actually been exercised here.
 Actual Kimi3 and Grok 4.6 independently ran the baseline suite and another
 **78 adversarial checks**. Their reports, original runnable probes and reviewed
 dispositions are in the [audit record](../audits/2026-09-19/README.md).
-The expanded current suite passes **102 checks: 95 Python and seven JavaScript**.
+The expanded current suite passes **103 checks: 96 Python and seven JavaScript**.
 New coverage includes corrupted state/cache recovery, interrupted setup, saved
 iPad profile preservation, Tailscale firewall completeness, virtual-output loss,
 failed removal, disabled displays and off-screen focus recovery.

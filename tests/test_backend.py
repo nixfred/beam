@@ -164,6 +164,17 @@ class BackendTest(unittest.TestCase):
                 (folder / 'user.rules').write_text(lan + extra)
                 self.assertEqual(self.beam.firewall()['firewallReady'], expected)
 
+    def test_active_tailscale_rules_accept_ufws_implicit_inbound_format(self):
+        (self.home / 'sys/class/net/tailscale0').mkdir(parents=True)
+        lan = ''.join(f'{port}/{proto} ALLOW {cidr} # omarchy-sunshine\n'
+                      for proto, ports in beam.PORTS.items() for port in ports for cidr in beam.PRIVATE_CIDRS)
+        for action, expected in [('ALLOW', True), ('ALLOW IN', True), ('ALLOW OUT', False), ('DENY', False)]:
+            with self.subTest(action=action):
+                tailscale = ''.join(f'{port}/{proto} on tailscale0 {action} Anywhere # omarchy-sunshine\n'
+                                    for proto, ports in beam.PORTS.items() for port in ports)
+                self.system.firewall_output = 'Status: active\n' + lan + tailscale
+                self.assertEqual(self.beam.firewall()['firewallReady'], expected)
+
     def test_duplicate_config_keys_match_sunshines_first_value(self):
         self.beam.sun.mkdir(parents=True)
         (self.beam.sun / 'sunshine.conf').write_text('port = 47989\nport = 48000\nfile_apps = first.json\nfile_apps = second.json\n')

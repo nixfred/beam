@@ -334,7 +334,7 @@ class Beam:
             complete = all(any(port in e.split() and cidr in e.split() and "ALLOW" in e for e in entries) for port, cidr in expected)
             if (self.etc.parent / "sys/class/net/tailscale0").exists():
                 complete = complete and all(any(str(p) + "/" + proto in e.split() and "tailscale0" in e.split()
-                                               and "ALLOW" in e.split() and "IN" in e.split() for e in entries)
+                                               and "ALLOW" in e.split() and "OUT" not in e.split() for e in entries)
                                            for proto, ports in PORTS.items() for p in ports)
             return dict(base, ufwRules=len(entries), firewallState="open" if complete else "incomplete", firewallReady=complete)
         rule_file = self.etc / "ufw/user.rules"

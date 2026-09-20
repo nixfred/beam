@@ -47,7 +47,7 @@ loopback `/welcome` probe.
 
 ## Verification
 
-- Current regression suite: **95 Python + 7 JavaScript checks**, including real
+- Current regression suite: **96 Python + 7 JavaScript checks**, including real
   offscreen Qt tests for delayed exits, ignored termination and QR recovery.
   Native tests skip explicitly when Quickshell or qrencode is unavailable; all
   native tests ran here.
@@ -64,6 +64,7 @@ loopback `/welcome` probe.
   Restoring focus from `beam-idle` did fail, then passed with the fix.
 - All 17 iPad profiles, exact native sizing, custom 4/3 scale preservation,
   superseded-session tokens and manual-layout preservation remain covered.
+- Final host verification caught and corrected an overly strict UFW parser assumption in the initial patch: inbound rules may show `ALLOW` without `IN`. A regression now covers both inbound forms, `DENY` and `ALLOW OUT`. No firewall rules were changed; actual readiness returned to true.
 - Manifest validation and whitespace checks pass. This change does not alter
   panel geometry; prior 1024x768 dark/light no-scroll evidence remains in the
   [verification report](../../verification/README.md).
