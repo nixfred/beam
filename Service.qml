@@ -112,7 +112,7 @@ Item {
     }
 
     function refresh() {
-        if (pollInFlight) return
+        if (pollInFlight || poll.retiring) return
         pollInFlight = true
         poll.launched = false
         poll.stdoutText = ""
@@ -124,6 +124,7 @@ Item {
         id: poll
         command: [root.cli, "status"]
         property bool launched: false
+        property bool retiring: false
         property string stdoutText: ""
         stdout: StdioCollector { waitForEnd: true; onStreamFinished: poll.stdoutText = text }
         onStarted: launched = true
@@ -135,6 +136,12 @@ Item {
         }
         onExited: function(code) {
             pollDeadline.stop()
+            pollKill.stop()
+            if (retiring) {
+                retiring = false
+                root.pollInFlight = false
+                return
+            }
             if (!root.pollInFlight) return
             Qt.callLater(function() {
                 if (code === 0) root.apply(poll.stdoutText)
@@ -147,9 +154,16 @@ Item {
         id: pollDeadline
         interval: 15000
         onTriggered: {
+            poll.retiring = true
             root.failPoll("The status check took too long. Check again.")
             poll.running = false
+            pollKill.restart()
         }
+    }
+    Timer {
+        id: pollKill
+        interval: 2000
+        onTriggered: if (poll.retiring) poll.signal(9)
     }
 
     function actionError(message, retryAction) {
@@ -174,6 +188,7 @@ Item {
         pending = pending.slice(1)
         actionInFlight = true
         act.launched = false
+        act.timedOut = false
         act.stdoutText = ""
         if (currentArgs[0] !== "greet") {
             actionRequestedAt = Date.now()
@@ -187,7 +202,9 @@ Item {
     function finishAction(code) {
         if (!actionInFlight) return
         actionInFlight = false
-        if (currentArgs[0] !== "greet") {
+        var timedOut = act.timedOut
+        act.timedOut = false
+        if (!timedOut && currentArgs[0] !== "greet") {
             try {
                 var result = JSON.parse(act.stdoutText)
                 actionReport = State.report(result, currentArgs[currentArgs.length - 1])
@@ -206,6 +223,7 @@ Item {
     Process {
         id: act
         property bool launched: false
+        property bool timedOut: false
         property string stdoutText: ""
         stdout: StdioCollector { waitForEnd: true; onStreamFinished: act.stdoutText = text }
         onStarted: launched = true
@@ -221,6 +239,7 @@ Item {
         }
         onExited: function(code) {
             actionDeadline.stop()
+            actionKill.stop()
             Qt.callLater(function() { root.finishAction(code) })
         }
     }
@@ -228,13 +247,20 @@ Item {
         id: actionDeadline
         interval: 15000
         onTriggered: {
-            root.actionInFlight = false
+            // Keep ownership of this process until its exit is acknowledged.
+            // A late exit must never be mistaken for the next queued action.
+            act.timedOut = true
             root.terminalPending = false
             act.running = false
             root.actionError("The action took too long. Check its terminal before trying again.", "")
             root.refresh()
-            Qt.callLater(root.drain)
+            actionKill.restart()
         }
+    }
+    Timer {
+        id: actionKill
+        interval: 2000
+        onTriggered: if (act.timedOut) act.signal(9)
     }
 
     function terminal(action) {

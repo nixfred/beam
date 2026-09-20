@@ -271,13 +271,14 @@ omarchy plugin remove nixfred.beam
 
 | Verified locally | Evidence |
 | :--- | :--- |
-| **77 regression tests** | Seventy Python checks for setup, browser routing, native sizing and recovery, plus seven service-state checks. |
+| **102 regression tests** | Ninety-five Python checks, including real Qt timeout and QR recovery tests, plus seven service-state checks. |
+| **Independent Kimi3 and Grok audits** | Adversarial baseline probes, reviewed findings and fixes. [Audit reports and replay commands](docs/audits/2026-09-19/README.md). |
 | **Clean VM install and removal** | One running Sunshine after install; zero processes and zero streaming rules after removal. |
 | **No-scroll layouts** | All six guided steps, Expert, long errors, and confirmation at 1280×800; normal views on a 5120×1440 host. |
 | **Dark and light QR codes** | Both codes decoded from captured screens with software. |
 | **Awake-hold transitions** | A real Wayland idle observer responded to synthetic stream connect/disconnect events. |
 
-Physical iPad pairing, desktop video, audio and a matching custom 2732×2048 picture are confirmed by the user. Camera scanning, input quality and actual stream-disconnect restoration still need separate physical acceptance. Read the [full verification report](docs/verification/README.md)
+Physical iPad pairing, desktop video, audio and a matching custom 2732×2048 picture are confirmed by the user. Post-stream readback confirms restoration to 5120×1440 at scale 1 with mirroring off. Camera scanning, input quality and Full/Safe Area requests remain separate physical acceptance checks. Read the [full verification report](docs/verification/README.md)
 for methods, screenshots, and remaining checks.
 
 <details>

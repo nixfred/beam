@@ -31,7 +31,8 @@ and the whole product is testable without a GUI.
 - **Never handle a sudo password.** The one step needing root opens a terminal the human can
   see and type into.
 - **Never create, store or read the Sunshine admin password.** It detects only that a
-  `username` line exists in `sunshine.conf`.
+  login exists through Sunshine's unauthenticated local `/welcome` response. Pairing
+  detection decodes only the public pairing subtree, not credential values.
 
 ## Layout
 

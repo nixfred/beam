@@ -26,7 +26,10 @@ class DisplayError(Exception):
 
 def load(path, default=None):
     try:
-        return json.loads(Path(path).read_text())
+        value = json.loads(Path(path).read_text())
+        if not isinstance(value, dict):
+            raise ValueError("expected a JSON object")
+        return value
     except FileNotFoundError:
         return {} if default is None else default
     except (OSError, ValueError):
@@ -91,6 +94,30 @@ class DisplayFit:
         self.preferences = beam.state / "display-preferences.json"
         self.last_request = beam.state / "display-last-request.json"
         self.virtual = VirtualDisplay(self)
+
+    def load_session(self):
+        session = load(self.state)
+        if not session and not self.state.exists():
+            return session
+        def mode_ok(mode):
+            return (isinstance(mode, dict) and isinstance(mode.get("mode"), str)
+                    and all(type(mode.get(k)) is int for k in ("width", "height", "x", "y", "transform"))
+                    and mode["width"] > 0 and mode["height"] > 0
+                    and all(type(mode.get(k)) in (int, float) and math.isfinite(mode[k]) and mode[k] > 0
+                            for k in ("scale", "refreshRate")))
+        valid = (isinstance(session.get("token"), str) and bool(session["token"])
+                 and isinstance(session.get("monitor"), str) and bool(session["monitor"])
+                 and mode_ok(session.get("original")) and mode_ok(session.get("applied"))
+                 and isinstance(session.get("owner"), dict)
+                 and type(session["owner"].get("pid")) is int
+                 and isinstance(session["owner"].get("identity"), str)
+                 and isinstance(session.get("requested"), list) and len(session["requested"]) == 3)
+        if session.get("kind") == "virtual":
+            valid = valid and isinstance(session.get("source"), str) and mode_ok(session.get("sourceOriginal"))
+        if not valid:
+            raise DisplayError("The saved display-session.json is incomplete.",
+                               "Beam kept the file. Check its saved monitor settings before retrying Restore display.")
+        return session
 
     def fixed_size(self):
         value = load(self.preferences)
@@ -218,7 +245,7 @@ class DisplayFit:
             data = load(self.app_path())
             apps = data.get("apps") if isinstance(data, dict) else None
             configured = isinstance(apps, list) and apps == self.configured_apps(apps)
-            session = load(self.state)
+            session = self.load_session()
             if not isinstance(session, dict):
                 raise DisplayError("The saved display session is invalid.")
             current = session.get("applied", {})
@@ -258,10 +285,24 @@ class DisplayFit:
                         resolutionDetail=error or session.get("error", detail), resolutionError=error,
                         resolutionPinned=bool(fixed), moonlightSetting=setting, nativeResolution=native,
                         ipadProfiles=profiles(), ipadProfile=load(self.preferences).get("ipadProfile", ""))
-        except (DisplayError, KeyError, TypeError):
-            return dict(resolutionReady=False, resolutionActive=False,
-                        recommendedRes="Full · 60 fps", resolutionDetail="Use Repair to enable automatic iPad sizing.", resolutionError="",
-                        resolutionPinned=False, moonlightSetting="Full", ipadProfiles=profiles(), ipadProfile="")
+        except (DisplayError, KeyError, TypeError, AttributeError) as exc:
+            detail = exc.message if isinstance(exc, DisplayError) else "The saved display session is invalid."
+            status = dict(resolutionReady=False, resolutionActive=False, nativeResolution=False,
+                          recommendedRes="Full · 60 fps", resolutionDetail=detail, resolutionError=detail,
+                          resolutionPinned=False, moonlightSetting="Full", ipadProfiles=profiles(), ipadProfile="")
+            # A damaged recovery record must not hide an independently valid
+            # iPad choice or make the offline model catalog disappear.
+            try:
+                status["nativeResolution"] = self.virtual.enabled()
+                fixed = self.fixed_size()
+                if fixed:
+                    scale = self.fixed_scale()
+                    status.update(resolutionPinned=True, moonlightSetting=f"Custom {fixed[0]}×{fixed[1]}",
+                                  recommendedRes=f"Fixed {fixed[0]}×{fixed[1]} · {scale * 100:.3g}% scale",
+                                  ipadProfile=load(self.preferences).get("ipadProfile", ""))
+            except DisplayError:
+                pass
+            return status
 
     def monitors(self, all_outputs=False):
         rc, output = self.beam.run(["hyprctl", "-j", "monitors", *(["all"] if all_outputs else [])])
@@ -349,7 +390,7 @@ class DisplayFit:
     def start(self, environ=None):
         requested = requested_size(os.environ if environ is None else environ)
         with self.lock():
-            previous = load(self.state)
+            previous = self.load_session()
             if previous:
                 self.restore(previous)
             processes = self.beam.processes()
@@ -385,7 +426,7 @@ class DisplayFit:
 
     def stop(self, token=None):
         with self.lock():
-            session = load(self.state)
+            session = self.load_session()
             if token is None or session.get("token") == token:
                 restored = self.restore(session)
                 self.error.unlink(missing_ok=True)
@@ -395,8 +436,8 @@ class DisplayFit:
         save(self.error, {"message": error.message, "detail": error.detail})
 
     def supervise(self):
-        """This foreground Sunshine app ends after the last client disconnects."""
-        session = load(self.state)
+        """This foreground Sunshine app ends when the iPad disconnects."""
+        session = self.load_session()
         if not session:
             raise DisplayError("The iPad display session was not prepared.")
         stopping = False
@@ -415,7 +456,7 @@ class DisplayFit:
                 rows = self.beam.processes()
                 if not any(p["pid"] == session["owner"]["pid"] and p["identity"] == session["owner"]["identity"] for p in rows):
                     break
-                if load(self.state).get("token") != session["token"]:
+                if self.load_session().get("token") != session["token"]:
                     break
                 # A theme reload, hotplug, or manual monitor change must not
                 # silently turn this session back into an ultrawide capture.

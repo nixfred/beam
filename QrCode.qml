@@ -96,6 +96,7 @@ Item {
             source: root.path ? "file://" + encodeURI(root.path) : ""
             fillMode: Image.PreserveAspectFit
             smooth: false
+            cache: false
             asynchronous: true
             onStatusChanged: if (status === Image.Error)
                 root.error = "QR could not load.\nSelect to retry."

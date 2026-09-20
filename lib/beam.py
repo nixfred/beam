@@ -25,6 +25,7 @@ import uuid
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from beam_display import DisplayError, DisplayFit
 from beam_browser import BrowserBridge, admin_port
+from beam_ipads import profiles
 
 APP_STORE = "https://apps.apple.com/app/id1000551566"
 UNITS = ("app-dev.lizardbyte.app.Sunshine.service", "sunshine.service")
@@ -48,9 +49,12 @@ def read_text(path, limit=262144):
 
 def read_json(path, fallback=None):
     try:
-        return json.loads(read_text(path))
+        value = json.loads(read_text(path))
+        if isinstance(value, dict):
+            return value
     except (ValueError, TypeError):
-        return {} if fallback is None else fallback
+        pass
+    return {} if fallback is None else fallback
 
 
 def atomic_json(path, data):
@@ -65,6 +69,18 @@ def atomic_json(path, data):
     finally:
         with contextlib.suppress(FileNotFoundError):
             os.unlink(name)
+
+
+def complete_png(path):
+    """Reject invalid headers and interrupted PNG writes before cache reuse."""
+    try:
+        with path.open("rb") as stream:
+            if stream.read(8) != b"\x89PNG\r\n\x1a\n":
+                return False
+            stream.seek(-12, os.SEEK_END)
+            return stream.read() == b"\x00\x00\x00\x00IEND\xaeB`\x82"
+    except OSError:
+        return False
 
 
 class Failure(Exception):
@@ -256,7 +272,8 @@ class Beam:
         for line in read_text(self.sun / "sunshine.conf", 65536).splitlines():
             key, _, val = line.partition("=")
             if key.strip() in allowed:
-                values[key.strip()] = val.strip()
+                # Sunshine's parse_config uses emplace: the first key wins.
+                values.setdefault(key.strip(), val.strip())
         return values
 
     def processes(self, name="sunshine"):
@@ -316,7 +333,9 @@ class Beam:
             expected = [(str(p) + "/" + proto, cidr) for proto, ports in PORTS.items() for p in ports for cidr in PRIVATE_CIDRS]
             complete = all(any(port in e.split() and cidr in e.split() and "ALLOW" in e for e in entries) for port, cidr in expected)
             if (self.etc.parent / "sys/class/net/tailscale0").exists():
-                complete = complete and all(any(str(p) + "/" + proto in e.split() and "tailscale0" in e for e in entries) for proto, ports in PORTS.items() for p in ports)
+                complete = complete and all(any(str(p) + "/" + proto in e.split() and "tailscale0" in e.split()
+                                               and "ALLOW" in e.split() and "IN" in e.split() for e in entries)
+                                           for proto, ports in PORTS.items() for p in ports)
             return dict(base, ufwRules=len(entries), firewallState="open" if complete else "incomplete", firewallReady=complete)
         rule_file = self.etc / "ufw/user.rules"
         saved = read_text(rule_file)
@@ -324,6 +343,10 @@ class Beam:
             marker = "omarchy-sunshine".encode().hex()
             entries = [line.split() for line in saved.splitlines() if line.startswith("### tuple ###") and "comment=" + marker in line]
             complete = all(any(len(e) > 10 and e[3:6] == ["allow", proto, str(p)] and e[8] == cidr and e[9] == "in" for e in entries) for proto, ports in PORTS.items() for p in ports for cidr in PRIVATE_CIDRS)
+            if (self.etc.parent / "sys/class/net/tailscale0").exists():
+                complete = complete and all(any(len(e) > 10 and e[3:6] == ["allow", proto, str(p)]
+                                               and e[6:10] == ["0.0.0.0/0", "any", "0.0.0.0/0", "in_tailscale0"] for e in entries)
+                                           for proto, ports in PORTS.items() for p in ports)
             return dict(base, ufwRules=len(entries), firewallState="configured" if complete else "incomplete", firewallReady=complete)
         return dict(base, firewallState="unknown", firewallKnown=False, firewallReady=False)
 
@@ -354,9 +377,15 @@ class Beam:
         previous = read_json(self.cache / "log.json")
         try:
             stat = path.stat()
-            same = previous.get("process") == identity and previous.get("inode") == stat.st_ino and previous.get("offset", 0) <= stat.st_size
-            facts = dict(previous.get("facts", empty)) if same else dict(empty)
-            offset = previous.get("offset", 0) if same else 0
+            offset = previous.get("offset")
+            cached = previous.get("facts")
+            valid = (type(offset) is int and 0 <= offset <= stat.st_size
+                     and isinstance(cached, dict)
+                     and all(type(cached.get(key)) is type(value) for key, value in empty.items())
+                     and cached["streamCount"] >= 0)
+            same = valid and previous.get("schema") == 2 and previous.get("process") == identity and previous.get("inode") == stat.st_ino
+            facts = {key: cached[key] for key in empty} if same else dict(empty)
+            offset = offset if same else 0
             # Bounded bootstrap and bounded incremental reads. If the log gets too
             # far ahead, evidence becomes unknown instead of carrying stale state.
             skipped = False
@@ -395,23 +424,41 @@ class Beam:
                 if re.search(r"Found (?:display|monitor)|Detected display", line, re.I):
                     facts["displayFound"] = True
                 if "CLIENT CONNECTED" in line:
-                    facts["streamCount"] += 1
+                    # These messages are lifecycle evidence, not unique client
+                    # IDs. Repeated connection events must not accumulate.
+                    facts["streamCount"] = 1
                 if "CLIENT DISCONNECTED" in line:
-                    facts["streamCount"] = max(0, facts["streamCount"] - 1)
+                    facts["streamCount"] = 0
             facts["streaming"] = facts["streamCount"] > 0
-            atomic_json(self.cache / "log.json", dict(process=identity, inode=stat.st_ino, offset=offset + discarded + consumed, facts=facts))
+            atomic_json(self.cache / "log.json", dict(schema=2, process=identity, inode=stat.st_ino, offset=offset + discarded + consumed, facts=facts))
             return facts
         except (OSError, ValueError, TypeError):
             return empty
 
-    def action_state(self):
+    def action_state(self, lock_held=False):
         saved = read_json(self.state / "action.json")
         if saved.get("busy"):
             pid = saved.get("pid")
-            pending = saved.get("phase") == "opening" and time.time() * 1000 - saved.get("updatedAt", 0) < 20000
-            live = bool(pid and process_identity(pid, self.proc) == saved.get("identity") and saved.get("identity"))
+            updated = saved.get("updatedAt", 0)
+            pending = (saved.get("phase") == "opening" and isinstance(updated, (int, float))
+                       and 0 <= time.time() * 1000 - updated < 20000)
+            live = bool(isinstance(pid, int) and pid > 0 and
+                        process_identity(pid, self.proc) == saved.get("identity") and saved.get("identity"))
             if not (pending or live):
-                saved = result(False, saved.get("action", ""), "The setup terminal closed before finishing.", "Open the action again to continue.", saved.get("action", "repair"), id=saved.get("id", ""), state="error", busy=False, phase="interrupted", updatedAt=time.time() * 1000)
+                interrupted = result(False, saved.get("action", ""), "The setup terminal closed before finishing.", "Open the action again to continue.", saved.get("action", "repair"), id=saved.get("id", ""), state="error", busy=False, phase="interrupted", updatedAt=time.time() * 1000)
+                # Persist the interruption once. Re-dating it on every poll
+                # would overwrite the UI results of later, unrelated actions.
+                try:
+                    with contextlib.nullcontext() if lock_held else self.lock():
+                        current = read_json(self.state / "action.json")
+                        if current != saved:
+                            return current
+                        atomic_json(self.state / "action.json", interrupted)
+                        saved = interrupted
+                except Failure:
+                    # A newly starting action owns the file. Let its next
+                    # progress update resolve this instead of overwriting it.
+                    pass
         return saved
 
     def status(self):
@@ -489,9 +536,9 @@ class Beam:
         print(message, file=sys.stderr, flush=True)
 
     @contextlib.contextmanager
-    def lock(self):
+    def lock(self, name="action"):
         self.state.mkdir(parents=True, exist_ok=True, mode=0o700)
-        with (self.state / "action.lock").open("a") as stream:
+        with (self.state / (name + ".lock")).open("a") as stream:
             try:
                 fcntl.flock(stream, fcntl.LOCK_EX | fcntl.LOCK_NB)
             except BlockingIOError:
@@ -650,7 +697,7 @@ class Beam:
             return result(False, "terminal", "This setup action is unavailable.")
         try:
             with self.lock():
-                if self.action_state().get("busy"):
+                if self.action_state(lock_held=True).get("busy"):
                     return result(False, action, "The setup terminal is already open.", "Finish that action first.")
                 if not self.system.have("omarchy-launch-terminal"):
                     return result(False, action, "Omarchy's terminal launcher is unavailable.", "Update Omarchy and try again.", action)
@@ -676,12 +723,12 @@ class Beam:
         try:
             self.cache.mkdir(parents=True, exist_ok=True, mode=0o700)
             target = self.cache / ("qr-" + hashlib.sha256(text.encode()).hexdigest() + ".png")
-            if not target.exists() or target.stat().st_size < 8:
+            if not complete_png(target):
                 fd, temp = tempfile.mkstemp(prefix="qr-", suffix=".png", dir=self.cache)
                 os.close(fd)
                 try:
                     rc, _ = self.run(["qrencode", "-t", "PNG", "-o", temp, "-s", "6", "-m", "4", "-l", "M", "--foreground=000000", "--background=FFFFFF", "--", text])
-                    if rc or Path(temp).read_bytes()[:8] != b"\x89PNG\r\n\x1a\n":
+                    if rc or not complete_png(Path(temp)):
                         return result(False, "qr", "The QR code could not be generated.", "Use the address or App Store link shown here.", "")
                     os.replace(temp, target)
                 finally:
@@ -725,7 +772,7 @@ class Beam:
 
     def greet(self):
         marker = self.state / "greeted"
-        with self.lock():
+        with self.lock("greet"):
             if marker.exists():
                 return result(True, "greet", "Welcome already shown.")
             if not self.status()["ready"]:
@@ -743,6 +790,7 @@ def fallback_status():
                 adminUrl="https://localhost:47990", displayFound=False, encoder="", encoderKind="unknown",
                 recommendedRes="Full · 60 fps", recommendedBitrate=20, pairedClients=0,
                 resolutionReady=False, resolutionActive=False, resolutionDetail="Use Repair to enable automatic iPad sizing.",
+                nativeResolution=False, resolutionPinned=False, moonlightSetting="Full", ipadProfile="", ipadProfiles=profiles(),
                 streaming=False, streamCount=0, locked=False, address="", addressKind="none", lanAddress="",
                 nextStep=2, ready=False, setupReady=False, qrAvailable=False, appStoreUrl=APP_STORE,
                 inputReady=False, actionBusy=False, lastAction={}, checks=[],

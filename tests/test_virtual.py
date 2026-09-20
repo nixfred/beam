@@ -70,6 +70,106 @@ class NativeTests(unittest.TestCase):
         self.fit.select_ipad('air-2732')
         self.assertEqual(self.fit.fixed_scale(), 4/3)
 
+    def test_repair_after_plugin_relocation_keeps_ipad_profile_and_scale(self):
+        self.fit.set_resolution('2732x2048', 4/3)
+        self.fit.select_ipad('pro-2732')
+        before = self.fit.preferences.read_bytes()
+        self.beam.entry = Path(self.temp.name) / 'relocated-plugin/bin/omarchy-beam'
+        self.assertTrue(self.v.install())
+        self.assertEqual(self.fit.preferences.read_bytes(), before)
+        self.assertEqual(load(self.v.preferences)['entry'], str(self.beam.entry))
+
+    def test_disabled_source_retains_recovery_until_it_is_enabled(self):
+        original = copy.deepcopy(self.physical)
+        self.start()
+        self.physical.update(disabled=True, mirrorOf='none')
+        saved = self.fit.state.read_bytes()
+        with self.assertRaisesRegex(DisplayError, 'disabled'):
+            self.fit.stop()
+        self.assertEqual(self.fit.state.read_bytes(), saved)
+        self.physical.pop('disabled')
+        self.assertTrue(self.fit.stop())
+        self.assertEqual(self.physical, original)
+
+    def test_corrupt_session_keeps_saved_ipad_choice_visible(self):
+        self.fit.install()
+        self.fit.set_resolution('2732x2048', 4/3)
+        self.fit.select_ipad('pro-2732')
+        for raw in ('null', '{broken', '{"token": "broken", "requested": [2732, 2048, 60], "applied": {}}'):
+            with self.subTest(raw=raw):
+                self.fit.state.write_text(raw)
+                status = self.fit.status()
+                self.assertFalse(status['resolutionReady'])
+                self.assertTrue(status['nativeResolution'])
+                self.assertEqual(status['ipadProfile'], 'pro-2732')
+                self.assertEqual(status['moonlightSetting'], 'Custom 2732×2048')
+                self.assertEqual(self.fit.state.read_text(), raw)
+
+    def test_incomplete_recovery_record_is_typed_and_never_changes_monitors(self):
+        original = copy.deepcopy(self.rows)
+        for record in ({}, {'token': 'broken'}, {'token': 'broken', 'requested': [2732, 2048, 60], 'applied': {}}):
+            save(self.fit.state, record)
+            for action in (self.start, self.fit.stop, self.v.prepare):
+                with self.subTest(record=record, action=action.__name__):
+                    with self.assertRaisesRegex(DisplayError, 'display-session.json'):
+                        action()
+                    self.assertEqual(load(self.fit.state), record)
+                    self.assertEqual(self.rows, original)
+
+    def test_idle_workspace_does_not_take_focus_from_restored_desktop(self):
+        session = self.start()
+        self.virtual['activeWorkspace'] = dict(id=-1337, name='beam-idle')
+        with patch.object(self.v, 'focus') as focus:
+            self.fit.stop()
+        self.assertEqual(focus.call_args.args, ('DP-1', session['sourceWorkspace']))
+
+    def test_incomplete_virtual_ownership_never_falls_back_to_physical(self):
+        original = copy.deepcopy(self.rows)
+        for data in ({}, {'entry': 'missing-output'}, {'entry': [], 'output': OUTPUT}):
+            save(self.v.preferences, data)
+            with self.assertRaises(DisplayError):
+                self.start()
+            with self.assertRaises(DisplayError):
+                self.v.install()
+            self.assertEqual(load(self.v.preferences), data)
+            self.assertEqual(self.rows, original)
+
+    def test_non_object_display_files_never_change_the_physical_mode(self):
+        original = copy.deepcopy(self.rows)
+        for path in (self.fit.state, self.v.preferences, self.fit.preferences):
+            before = path.read_bytes() if path.exists() else None
+            try:
+                for raw in ('null', '[]', '[1]', 'true', '0', '"bad"'):
+                    with self.subTest(file=path.name, raw=raw):
+                        path.write_text(raw)
+                        with self.assertRaises(DisplayError):
+                            self.start()
+                        self.assertEqual(path.read_text(), raw)
+                        self.assertEqual(self.rows, original)
+            finally:
+                if before is None:
+                    path.unlink(missing_ok=True)
+                else:
+                    path.write_bytes(before)
+
+    def test_failed_output_removal_keeps_ownership_for_retry(self):
+        before = self.v.preferences.read_bytes()
+        for result in [(1, 'failed'), (0, 'ok')]:
+            with self.subTest(result=result), patch.object(self.beam, 'run', return_value=result):
+                with self.assertRaisesRegex(DisplayError, 'could not be removed'):
+                    self.v.remove()
+                self.assertEqual(self.v.preferences.read_bytes(), before)
+
+        def remove(args):
+            self.assertEqual(args, ['hyprctl', 'output', 'remove', OUTPUT])
+            self.rows.remove(self.virtual)
+            return 0, 'ok'
+        with patch.object(self.beam, 'run', side_effect=remove):
+            self.v.remove()
+        self.assertFalse(self.v.preferences.exists())
+        # With ownership cleared and the output gone, installation is retryable.
+        self.assertTrue(self.v.install())
+
     def test_ipad_selection_is_persistent_and_only_changes_next_session(self):
         session = self.start(2732,2048)
         self.fit.select_ipad('mini-2266')
@@ -137,9 +237,28 @@ class NativeTests(unittest.TestCase):
     def test_manual_physical_change_is_preserved_and_windows_return(self):
         self.start()
         self.physical.update(mirrorOf='none',width=1920,height=1080)
-        self.fit.stop()
+        self.assertFalse(self.fit.stop())
         self.assertEqual(self.physical['width'],1920)
         self.assertEqual(self.spaces[0]['monitor'],'DP-1')
+
+    def test_capture_output_loss_restores_physical_staging_position(self):
+        original = copy.deepcopy(self.physical)
+        self.start()
+        self.rows.remove(self.virtual)
+        self.physical['mirrorOf'] = 'none'  # Hyprland clears a vanished mirror.
+        self.assertNotEqual(self.physical['x'], original['x'])
+        self.assertTrue(self.fit.stop())
+        self.assertEqual(self.physical, original)
+        self.assertFalse(self.fit.state.exists())
+
+    def test_capture_output_loss_preserves_a_new_manual_physical_mode(self):
+        self.start()
+        self.rows.remove(self.virtual)
+        self.physical.update(mirrorOf='none', width=1920, height=1080, x=200)
+        manual = copy.deepcopy(self.physical)
+        self.assertFalse(self.fit.stop())
+        self.assertEqual(self.physical, manual)
+        self.assertEqual(self.spaces[0]['monitor'], 'DP-1')
 
     def test_source_disconnection_retains_recovery(self):
         self.start()

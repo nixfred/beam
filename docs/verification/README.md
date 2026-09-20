@@ -6,7 +6,7 @@ documentation address, supplied to the UI before native capture.
 
 ## Automated checks
 
-- Ten backend regressions cover firewall readiness, log freshness, notification
+- Twenty-five backend regressions cover firewall readiness, log freshness, notification
   routing, exited-child handling during removal, and shared private-browser Admin/PIN
   launches with fallback and error reporting, plus running-process migration and
   refusal to restart an active stream.
@@ -24,7 +24,7 @@ documentation address, supplied to the UI before native capture.
   automatic sizing, and refusal to replace an unavailable fixed mode with a smaller one.
   Client mismatch evidence survives disconnect, clears after a matching request,
   stores only validated dimensions, and tolerates absent or malformed diagnostics.
-- Fourteen additional native-display regressions cover iPad pixel dimensions and readable
+- Twenty-nine native-display regressions cover iPad pixel dimensions and readable
   scaling, exact sizing independent of EDID, durable rollback, failed recovery,
   manual changes, unplugged source recovery, newly opened workspaces, multiple
   source selection, disabled laptop panels, fixed native sizes, missing capture outputs, and a 1920x1440 custom workspace
@@ -34,6 +34,10 @@ documentation address, supplied to the UI before native capture.
   scales without overwriting the saved preference.
 - Seven service-state tests cover stale/malformed status, action queues,
   terminal progress, error recovery, and idle-inhibitor eligibility.
+- Three real Qt regressions cover late process exits after timeout, forced
+  termination of an unresponsive helper, and QR generation/loading/retry from a
+  damaged cache. These tests skip explicitly if their native tools are absent;
+  all three ran in this audit.
 - The Omarchy manifest validator and whitespace checks pass.
 
 ```sh
@@ -150,11 +154,13 @@ contains no client identity, credentials, or other environment variables.
 
 ## Remaining acceptance
 
-Physical iPad pairing, video, audio and a requested 720p resize are confirmed.
-Still needed: camera scanning, Full/Safe Area requests, image quality, input,
-and restoration after a real resized stream disconnects.
-Native sizing now removes the physical panel mode limit. Full still must be
-selected in Moonlight; a 720p or fixed 16:9 request can leave borders.
+Physical iPad pairing, video, audio and matching **2732x2048** custom capture are
+confirmed. The user approved the fit and later accepted the text size. Post-stream
+Hyprland readback confirmed **5120x1440 at 59.977 Hz, scale 1, position 0,0,
+mirrorOf none** on the physical ultrawide; Beam reported no active resize.
+Still needed: physical camera scanning, input quality, Full/Safe Area requests,
+and acceptance on other iPad models. A 720p or fixed 16:9 client request can still
+leave borders; Moonlight must match the chosen custom dimensions.
 
 After changing Moonlight's resolution, quit the existing session and launch
 Beam Desktop again. Sunshine does not rerun preparation hooks for a resume.
@@ -202,3 +208,20 @@ establish what has actually been exercised here.
   the user's existing **4/3 scale**.
 - Local wallpaper playback was disabled separately at the user's request. The
   installer does not globally change another user's wallpaper preference.
+
+## Independent bug audits (2026-09-19)
+
+Actual Kimi3 and Grok 4.6 independently ran the baseline suite and another
+**78 adversarial checks**. Their reports, original runnable probes and reviewed
+dispositions are in the [audit record](../audits/2026-09-19/README.md).
+The expanded current suite passes **102 checks: 95 Python and seven JavaScript**.
+New coverage includes corrupted state/cache recovery, interrupted setup, saved
+iPad profile preservation, Tailscale firewall completeness, virtual-output loss,
+failed removal, disabled displays and off-screen focus recovery.
+
+Real VM checks reproduced output-loss and idle-workspace focus failures, then
+verified both fixes. The physical VM monitor returned to its exact saved mode
+and position; output removal/recreation passed. Rotation was retained through a
+non-mirror mode update, so that audit concern did not reproduce. The test VM was
+stopped after verification. No new physical iPad acceptance is claimed by these
+synthetic stream checks.

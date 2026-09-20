@@ -23,7 +23,12 @@ class VirtualDisplay:
         self.preferences = self.beam.state / "display-virtual.json"
 
     def enabled(self):
-        return bool(load(self.preferences))
+        value = load(self.preferences)
+        if not value and not self.preferences.exists():
+            return False
+        if not isinstance(value.get("entry"), str) or not value["entry"] or value.get("output") != OUTPUT:
+            raise DisplayError("The saved iPad capture setup is invalid.", "The existing file was left unchanged.")
+        return True
 
     def command(self, code):
         rc, output = self.beam.run(["hyprctl", "eval", code])
@@ -85,8 +90,9 @@ class VirtualDisplay:
     def prepare(self):
         """Called before Sunshine starts, so it enumerates the named output."""
         with self.fit.lock():
-            if load(self.fit.state):
-                self.fit.restore(load(self.fit.state))
+            session = self.fit.load_session()
+            if session:
+                self.fit.restore(session)
             source = self.source()
             existing = [m for m in self.monitors() if m["name"] == OUTPUT]
             created = not existing
@@ -109,14 +115,17 @@ class VirtualDisplay:
     def install(self):
         self.source()  # Fail before changing setup if the source is ambiguous.
         expected = dict(entry=str(self.beam.entry), output=OUTPUT)
+        self.enabled()  # Validate an existing ownership record before replacing it.
         previous = load(self.preferences)
         if previous == expected:
             return not any(m["name"] == OUTPUT for m in self.monitors())
         if not previous and any(m["name"] == OUTPUT for m in self.monitors()):
             raise DisplayError("Another display already uses Beam's capture name.", "Rename that display before running Repair.")
         save(self.preferences, expected)
-        # Migrate the old 16:9 workaround to native client dimensions.
-        self.fit.preferences.unlink(missing_ok=True)
+        # Only the first migration replaces the old physical-display workaround.
+        # Updating the plugin's path must preserve a chosen iPad size and scale.
+        if not previous:
+            self.fit.preferences.unlink(missing_ok=True)
         return True
 
     def start(self, requested, owner):
@@ -160,16 +169,25 @@ class VirtualDisplay:
         monitors = self.monitors()
         source = next((m for m in monitors if m["name"] == session["source"]), None)
         virtual = next((m for m in monitors if m["name"] == OUTPUT), None)
-        if not source:
-            raise DisplayError("The original display is disconnected.", "Reconnect it and use Restore display in Beam.")
+        if not source or source.get("disabled", False):
+            raise DisplayError("The original display is disconnected or disabled.", "Reconnect or enable it and use Restore display in Beam.")
         # Only undo Beam's mirror. A newer manual layout wins.
         mirrored = virtual and str(source.get("mirrorOf")) == str(virtual["id"])
+        # Removing the capture output makes Hyprland clear mirrorOf while
+        # leaving the physical output at Beam's staging position. Recognize
+        # that exact mode/position before discarding the recovery record.
+        staged = dict(session["sourceOriginal"], x=session["original"]["x"],
+                      y=session["original"]["y"])
+        orphaned = source.get("mirrorOf", "none") == "none" and self.fit.matches(source, staged)
+        restore_source = mirrored or orphaned
         try:
             active = virtual.get("activeWorkspace") if virtual else None
+            if active and active.get("name") == IDLE:
+                active = None  # Never return keyboard focus to the parked output.
             if virtual:
-                parked_source = dict(source, **session["sourceOriginal"]) if mirrored else source
+                parked_source = dict(source, **session["sourceOriginal"]) if restore_source else source
                 self.idle(parked_source, focus=False)
-            if mirrored:
+            if restore_source:
                 self.fit.apply(source["name"], dict(session["sourceOriginal"], mirror=""))
             for workspace in self.workspaces():
                 if workspace["monitor"] == OUTPUT and workspace["name"] != IDLE:
@@ -180,11 +198,14 @@ class VirtualDisplay:
             save(self.fit.state, session)
             raise
         self.fit.state.unlink(missing_ok=True)
-        return True
+        return bool(restore_source or self.fit.matches(source, session["sourceOriginal"]))
 
     def remove(self):
         if self.enabled():
             self.fit.stop()
             if any(m["name"] == OUTPUT for m in self.monitors()):
-                self.beam.run(["hyprctl", "output", "remove", OUTPUT])
+                rc, output = self.beam.run(["hyprctl", "output", "remove", OUTPUT])
+                if rc or output.strip() != "ok" or any(m["name"] == OUTPUT for m in self.monitors()):
+                    raise DisplayError("The iPad capture display could not be removed.",
+                                       "Retry Remove. Beam kept its display ownership record.")
             self.preferences.unlink(missing_ok=True)

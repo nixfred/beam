@@ -1,5 +1,7 @@
 """Backend regressions use synthetic files and commands, never host setup."""
 import datetime as dt
+import base64
+import hashlib
 import importlib.util
 from pathlib import Path
 import tempfile
@@ -36,6 +38,28 @@ class BackendTest(unittest.TestCase):
         self.system = FakeSystem()
         self.beam = beam.Beam(home=self.home, system=self.system, etc=self.home / "etc")
 
+    def test_invalid_or_truncated_qr_cache_is_regenerated(self):
+        png = base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a4cUAAAAASUVORK5CYII=')
+        text = '192.0.2.20'
+        target = self.beam.cache / ('qr-' + hashlib.sha256(text.encode()).hexdigest() + '.png')
+        self.beam.cache.mkdir(parents=True)
+        self.system.have = lambda name: name == 'qrencode'
+        calls = []
+        def generate(args):
+            calls.append(args)
+            Path(args[args.index('-o') + 1]).write_bytes(png)
+            return 0, ''
+        self.system.run = generate
+        for damaged in (b'garbage longer than eight bytes', png[:8], png[:-12]):
+            with self.subTest(damaged=damaged):
+                target.write_bytes(damaged)
+                count = len(calls)
+                self.assertTrue(self.beam.qr(text)['ok'])
+                self.assertEqual(len(calls), count + 1)
+                self.assertEqual(target.read_bytes(), png)
+                self.assertTrue(self.beam.qr(text)['ok'])
+                self.assertEqual(len(calls), count + 1)
+
     def test_one_firewall_rule_is_not_complete_setup(self):
         self.system.firewall_output += "47984/tcp ALLOW IN 10.0.0.0/8 # omarchy-sunshine\n"
         status = self.beam.firewall()
@@ -60,6 +84,12 @@ class BackendTest(unittest.TestCase):
         self.assertEqual(len(notifications), 1)
         self.assertEqual(notifications[0][-4:], ["--exec", "omarchy-shell", "nixfred.beam", "open"])
 
+    def test_install_lock_does_not_consume_the_one_time_welcome(self):
+        self.beam.status = lambda: {'ready': False}
+        with self.beam.lock():
+            self.assertTrue(self.beam.greet()['ok'])
+        self.assertTrue((self.beam.state / 'greeted').exists())
+
     def test_stream_state_tracks_current_process_and_complete_log_lines(self):
         log = self.home / "sunshine.log"
         now = dt.datetime.now().replace(microsecond=0)
@@ -81,6 +111,70 @@ class BackendTest(unittest.TestCase):
         restarted = self.beam.log_facts([later], log)
         self.assertEqual(restarted["encoder"], "")
         self.assertFalse(restarted["displayFound"])
+
+    def test_damaged_log_cache_is_rebuilt_from_current_log(self):
+        log = self.home / "sunshine.log"
+        now = dt.datetime.now().replace(microsecond=0)
+        stamp = now.strftime("[%Y-%m-%d %H:%M:%S]")
+        log.write_text(f"{stamp} Info: CLIENT CONNECTED\n")
+        proc = dict(pid=123, identity="100", started=now.timestamp())
+        expected = self.beam.log_facts([proc], log)
+        cache = self.beam.cache / "log.json"
+        base = beam.read_json(cache)
+        damaged = [None, [], dict(base, facts={}), dict(base, facts=[]),
+                   dict(base, facts=dict(expected, streamCount="one")),
+                   dict(base, facts=dict(expected, streamCount=-1))]
+        damaged += [dict(base, offset=offset) for offset in (None, "0", -1, .5, True)]
+        for data in damaged:
+            with self.subTest(data=data):
+                beam.atomic_json(cache, data)
+                self.assertEqual(self.beam.log_facts([proc], log), expected)
+                self.assertEqual(beam.read_json(cache)["offset"], log.stat().st_size)
+                # Re-reading the repaired cache must not count the same client twice.
+                self.assertEqual(self.beam.log_facts([proc], log), expected)
+
+    def test_repeated_connect_events_do_not_prevent_disconnect(self):
+        log = self.home / "sunshine.log"
+        now = dt.datetime.now().replace(microsecond=0)
+        stamp = now.strftime("[%Y-%m-%d %H:%M:%S]")
+        proc = dict(pid=123, identity="100", started=now.timestamp())
+        log.write_text(f"{stamp} Info: CLIENT CONNECTED\n" * 2)
+        self.assertTrue(self.beam.log_facts([proc], log)["streaming"])
+        with log.open('a') as stream:
+            stream.write(f"{stamp} Info: CLIENT DISCONNECTED\n")
+        self.assertFalse(self.beam.log_facts([proc], log)["streaming"])
+        cached = beam.read_json(self.beam.cache / 'log.json')
+        cached.pop('schema')
+        cached['facts'].update(streaming=True, streamCount=1)
+        beam.atomic_json(self.beam.cache / 'log.json', cached)
+        self.assertFalse(self.beam.log_facts([proc], log)["streaming"])
+
+    def test_saved_firewall_rules_require_tailscale_permissions_too(self):
+        marker = 'omarchy-sunshine'.encode().hex()
+        folder = self.beam.etc / 'ufw'
+        folder.mkdir(parents=True)
+        (self.home / 'sys/class/net/tailscale0').mkdir(parents=True)
+        lan = ''.join(f'### tuple ### allow {proto} {port} 0.0.0.0/0 any {cidr} in comment={marker}\n'
+                      for proto, ports in beam.PORTS.items() for port in ports for cidr in beam.PRIVATE_CIDRS)
+        tailscale = ''.join(f'### tuple ### allow {proto} {port} 0.0.0.0/0 any 0.0.0.0/0 in_tailscale0 comment={marker}\n'
+                           for proto, ports in beam.PORTS.items() for port in ports)
+        self.system.firewall_output = 'permission denied'
+        for extra, expected in [('', False), (tailscale.replace('allow', 'deny'), False), (tailscale, True)]:
+            with self.subTest(extra=extra[:40]):
+                (folder / 'user.rules').write_text(lan + extra)
+                self.assertEqual(self.beam.firewall()['firewallReady'], expected)
+
+    def test_duplicate_config_keys_match_sunshines_first_value(self):
+        self.beam.sun.mkdir(parents=True)
+        (self.beam.sun / 'sunshine.conf').write_text('port = 47989\nport = 48000\nfile_apps = first.json\nfile_apps = second.json\n')
+        self.assertEqual(self.beam.config_values(), dict(port='47989', file_apps='first.json'))
+        self.assertEqual(beam.admin_port(self.beam.config), 47990)
+
+    def test_probe_failure_still_contains_offline_ipad_catalog(self):
+        status = beam.fallback_status()
+        self.assertEqual(len(status['ipadProfiles']), 17)
+        self.assertFalse(status['nativeResolution'])
+        self.assertEqual(status['moonlightSetting'], 'Full')
 
     def test_exited_child_does_not_block_removal_while_parent_terminal_is_open(self):
         proc = self.home / "proc"
@@ -170,6 +264,58 @@ class BackendTest(unittest.TestCase):
             with self.assertRaises(beam.Failure):
                 self.beam.perform("install")
             repair.assert_not_called()
+
+    def test_non_object_action_state_can_be_replaced_by_progress(self):
+        import json
+        self.beam.state.mkdir(parents=True)
+        path = self.beam.state / 'action.json'
+        for value in [[], None, True, 42, 'broken']:
+            with self.subTest(value=value):
+                path.write_text(json.dumps(value))
+                self.assertEqual(self.beam.action_state(), {})
+                with patch('builtins.print'):
+                    self.beam.progress('repair', 'Checking setup.')
+                self.assertEqual(json.loads(path.read_text())['action'], 'repair')
+
+    def test_interrupted_action_is_not_redated_on_every_poll(self):
+        self.beam.proc = self.home / 'proc'
+        beam.atomic_json(self.beam.state / 'action.json', dict(busy=True, phase='running',
+                         pid=123, identity='1', action='install', updatedAt=1))
+        first = self.beam.action_state()
+        with patch.object(beam.time, 'time', return_value=time.time() + 60):
+            second = self.beam.action_state()
+        self.assertEqual(first, second)
+        self.assertFalse(beam.read_json(self.beam.state / 'action.json')['busy'])
+
+    def test_malformed_or_future_pending_timestamp_does_not_wedge_setup(self):
+        self.beam.proc = self.home / 'proc'
+        for stamp in ['invalid', [], None, float('inf'), time.time() * 1000 + 60000]:
+            with self.subTest(stamp=stamp):
+                beam.atomic_json(self.beam.state / 'action.json', dict(busy=True, phase='opening',
+                                 pid='not-a-pid', identity='1', action='install', updatedAt=stamp))
+                state = self.beam.action_state()
+                self.assertFalse(state['busy'])
+                self.assertEqual(state['phase'], 'interrupted')
+
+    def test_terminal_can_reopen_a_dead_action_without_an_intervening_poll(self):
+        self.beam.proc = self.home / 'proc'
+        beam.atomic_json(self.beam.state / 'action.json', dict(busy=True, phase='running',
+                         pid=123, identity='1', action='install', updatedAt=1))
+        self.system.have = lambda name: name == 'omarchy-launch-terminal'
+        with patch.object(self.system, 'spawn', create=True) as spawn:
+            reopened = self.beam.terminal('repair')
+        self.assertTrue(reopened['ok'])
+        self.assertTrue(reopened['busy'])
+        self.assertEqual(reopened['action'], 'repair')
+        spawn.assert_called_once()
+
+    def test_interruption_detection_does_not_overwrite_an_action_lock_owner(self):
+        self.beam.proc = self.home / 'proc'
+        saved = dict(busy=True, phase='running', pid=123, identity='1', action='install', updatedAt=1)
+        beam.atomic_json(self.beam.state / 'action.json', saved)
+        with self.beam.lock():
+            self.assertEqual(self.beam.action_state(), saved)
+        self.assertEqual(beam.read_json(self.beam.state / 'action.json'), saved)
 
 
 if __name__ == "__main__":

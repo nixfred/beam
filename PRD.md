@@ -207,8 +207,8 @@ Definitions that are not obvious:
 - **Never handle a sudo password.** Not on a command line, not in a variable, not on stdin.
   The one command that needs root (`install`) runs in a terminal the human can see and type
   into.
-- **Never touch the Sunshine admin password.** Beam detects only that a `username` line exists
-  in `sunshine.conf`. It never reads, sets or transmits the password.
+- **Never touch the Sunshine admin password.** Beam detects an existing login through
+  the unauthenticated local `/welcome` response. It never reads, sets or transmits the password.
 - **`status` must be cheap.** It runs every two seconds while a stream is live. Tail the log,
   do not read it whole.
 - **`status` must never fail.** Missing files, missing `ufw`, missing `tailscale`, Sunshine not
@@ -241,8 +241,9 @@ other links use the standard opener, and global browser preferences are untouche
 Removal deletes the managed startup line. The standalone helper survives removal
 of the panel plugin itself.
 
-**Admin login exists.** A `username` line with a non-empty value in
-`~/.config/sunshine/sunshine.conf`. Never read the password field.
+**Admin login exists.** Sunshine's numeric loopback HTTPS `/welcome` response redirects
+to `/`. An HTTP 200 means the welcome screen is still available. No authentication
+header, response body, proxy, redirect following or credential-file lookup is used.
 
 **Paired clients.** Count objects carrying a `uniqueid` in
 `~/.config/sunshine/sunshine_state.json`. Guard the result: if it is not all digits, it is 0.
