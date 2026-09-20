@@ -610,6 +610,9 @@ class Beam:
             raise Failure("Sunshine is not installed.", "Use Install to set up this computer.", "install")
         if self.status()["streaming"]:
             raise Failure("End the current stream before Repair.", "Quit Beam Desktop in Moonlight, then retry.")
+        # Only once nothing is live: a record no action can read must not wedge
+        # every action, so it is set aside and reported by name.
+        aside = self.display.clear_invalid()
         self.display.stop()
         apps_changed = self.display.install()
         display_changed = self.display.virtual.install()
@@ -643,6 +646,13 @@ class Beam:
             raise Failure("Sunshine startup was not saved.", "Retry Repair after checking the terminal error.")
         if not self.firewall()["firewallReady"]:
             raise Failure("Streaming ports could not be verified.", "Retry Ports in the setup terminal.", "ports")
+        return aside
+
+    @staticmethod
+    def aside_detail(aside, detail):
+        if not aside:
+            return detail
+        return "Unreadable display settings were set aside: " + ", ".join(str(p) for p in aside) + ". " + detail
 
     def perform(self, action):
         if action == "install":
@@ -657,12 +667,14 @@ class Beam:
                 self.require(["omarchy-pkg-add", "sunshine"], "Sunshine did not install.", "install", 1800, True)
                 if not self.system.have("sunshine"):
                     raise Failure("Sunshine is still missing after installation.", "Check the package transaction and retry Install.", "install")
-            self.repair()
-            return result(True, action, "This computer's installation is complete.", "Choose your iPad screen size in Beam, create your Sunshine login, then pair Moonlight.")
+            aside = self.repair()
+            return result(True, action, "This computer's installation is complete.",
+                          self.aside_detail(aside, "Choose your iPad screen size in Beam, create your Sunshine login, then pair Moonlight."))
         if action == "repair":
             self.progress(action, "Checking startup and finishing the Omarchy setup.")
-            self.repair()
-            return result(True, action, "Sunshine startup and streaming ports are ready.", "The live checks will confirm capture when Sunshine reports it.")
+            aside = self.repair()
+            return result(True, action, "Sunshine startup and streaming ports are ready.",
+                          self.aside_detail(aside, "The live checks will confirm capture when Sunshine reports it."))
         if action == "ports":
             self.progress(action, "Applying Omarchy's streaming port rules.")
             self.stock_function("open_ufw_ports", root=True)
@@ -701,7 +713,7 @@ class Beam:
                     done = self.perform(action)
                 except (Failure, DisplayError) as exc:
                     done = result(False, action, exc.message, exc.detail, exc.retry)
-                except (OSError, ValueError) as exc:
+                except Exception as exc:
                     done = result(False, action, "The action could not finish.", "Check the setup terminal and retry.", action)
                     print(type(exc).__name__ + ": " + str(exc), file=sys.stderr)
                 previous = read_json(self.state / "action.json")
@@ -753,12 +765,15 @@ class Beam:
                 finally:
                     with contextlib.suppress(FileNotFoundError):
                         os.unlink(temp)
-            # Keep only a small address-change history.
-            for stale in sorted(self.cache.glob("qr-*.png"), key=lambda p: p.stat().st_mtime, reverse=True)[16:]:
-                stale.unlink(missing_ok=True)
-            return result(True, "qr", "QR code ready.", path=str(target))
+            done = result(True, "qr", "QR code ready.", path=str(target))
         except OSError:
             return result(False, "qr", "The QR code could not be saved.", "Use the address or App Store link shown here.")
+        # Keep only a small address-change history. The panel generates two codes
+        # at once, so a prune losing its race must not fail a written code.
+        with contextlib.suppress(OSError):
+            for stale in sorted(self.cache.glob("qr-*.png"), key=lambda p: p.stat().st_mtime, reverse=True)[16:]:
+                stale.unlink(missing_ok=True)
+        return done
 
     def open_admin(self, pin=False):
         status = self.status()
@@ -808,7 +823,7 @@ def fallback_status():
                 firewallState="unknown", adminUp=False, adminConfigured=False, adminKnown=False,
                 adminUrl="https://localhost:47990", displayFound=False, encoder="", encoderKind="unknown",
                 recommendedRes="Full · 60 fps", recommendedBitrate=20, pairedClients=0,
-                resolutionReady=False, resolutionActive=False, resolutionDetail="Use Repair to enable automatic iPad sizing.",
+                resolutionReady=False, resolutionActive=False, fixedWidth=0, fixedHeight=0, resolutionDetail="Use Repair to enable automatic iPad sizing.",
                 nativeResolution=False, resolutionPinned=False, moonlightSetting="Full", ipadProfile="", ipadProfiles=profiles(),
                 streaming=False, streamCount=0, locked=False, address="", addressKind="none", lanAddress="",
                 nextStep=2, ready=False, setupReady=False, qrAvailable=False, appStoreUrl=APP_STORE,
@@ -836,7 +851,15 @@ def main(argv=None):
         elif action == "terminal":
             data = beam.terminal(args[0] if args else "")
         elif action == "run-terminal":
-            data = beam.execute(args[0] if args else "")
+            requested = args[0] if args else ""
+            try:
+                data = beam.execute(requested)
+            except Exception as exc:
+                # This terminal exists to show failures. Never close on one.
+                print(type(exc).__name__ + ": " + str(exc), file=sys.stderr)
+                data = result(False, requested or action, "Beam could not finish this action.",
+                              "Check the error above, then retry from Beam.",
+                              requested if requested in PRIVILEGED else "")
             print("\n" + data["message"] + "\n" + data["detail"], file=sys.stderr)
             if sys.stdin.isatty():
                 try:

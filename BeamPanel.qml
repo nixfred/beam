@@ -48,7 +48,14 @@ Ui.Panel {
         removeConfirmation = false;
     }
     function showSizing(family) {
-        var saved = svc ? svc.ipadProfiles.find(function(p) { return p.id === svc.ipadProfile; }) : null;
+        // A saved size without a model id must still select the matching model.
+        // Preselecting the wrong one invites replacing a working screen size.
+        var list = svc ? svc.ipadProfiles : [];
+        var saved = !svc ? null : list.find(function (p) {
+            return p.id === svc.ipadProfile;
+        }) || list.find(function (p) {
+            return svc.fixedWidth > 0 && p.width === svc.fixedWidth && p.height === svc.fixedHeight;
+        }) || null;
         ipadFamily = family || (saved ? saved.family : "iPad");
         previewIpad = saved ? saved.id : "";
         sizingMode = true;

@@ -47,6 +47,45 @@ class DisplayTests(unittest.TestCase):
         self.fit = self.beam.display
         self.request = {"SUNSHINE_CLIENT_WIDTH": "2048", "SUNSHINE_CLIENT_HEIGHT": "1536", "SUNSHINE_CLIENT_FPS": "60"}
 
+    def test_unreadable_records_are_set_aside_so_repair_is_never_a_dead_end(self):
+        save(self.fit.preferences, dict(width=1024, height=768, fps=60, scale=1))
+        self.fit.state.write_text('{"token": "only"}')
+        self.fit.virtual.preferences.write_text('{"output": "SOMETHING-ELSE"}')
+        with self.assertRaises(DisplayError):
+            self.fit.load_session()
+        with self.assertRaises(DisplayError):
+            self.fit.virtual.enabled()
+        aside = self.fit.clear_invalid()
+        self.assertEqual(len(aside), 2)
+        for moved in aside:
+            self.assertIn(".invalid-", moved.name)
+            self.assertTrue(moved.exists())
+        self.assertEqual(self.fit.load_session(), {})
+        # The capture record holds no user choice, so it is rebuilt at once.
+        self.assertTrue(self.fit.virtual.enabled())
+        # A readable screen size must survive an unrelated damaged record.
+        self.assertEqual(self.fit.fixed_size(), (1024, 768, 60))
+        self.assertEqual(self.fit.clear_invalid(), [])
+
+    def test_unreadable_screen_size_is_set_aside_and_falls_back_to_full(self):
+        self.fit.preferences.parent.mkdir(parents=True, exist_ok=True)
+        self.fit.preferences.write_text("not json")
+        with self.assertRaises(DisplayError):
+            self.fit.fixed_size()
+        self.assertEqual(len(self.fit.clear_invalid()), 1)
+        self.assertIsNone(self.fit.fixed_size())
+
+    def test_saved_screen_size_is_published_as_numbers_for_the_model_list(self):
+        blank = self.fit.status()
+        self.assertEqual((blank["fixedWidth"], blank["fixedHeight"]), (0, 0))
+        self.fit.set_resolution("1024x768")
+        saved = self.fit.status()
+        self.assertEqual((saved["fixedWidth"], saved["fixedHeight"]), (1024, 768))
+        # A damaged recovery record must not hide the saved size either.
+        self.fit.state.write_text('{"token": "only"}')
+        damaged = self.fit.status()
+        self.assertEqual((damaged["fixedWidth"], damaged["fixedHeight"]), (1024, 768))
+
     def test_ultrawide_becomes_ipad_aspect_without_exceeding_client(self):
         mode = choose_mode(self.system.monitors[0], (2048, 1536, 60))
         self.assertEqual((mode["width"], mode["height"]), (1024, 768))

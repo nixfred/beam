@@ -54,6 +54,8 @@ Item {
     readonly property string moonlightSetting: String(snapshot.moonlightSetting || "Full")
     readonly property bool resolutionReady: snapshot.resolutionReady === true
     readonly property bool nativeResolution: snapshot.nativeResolution === true
+    readonly property int fixedWidth: Number(snapshot.fixedWidth || 0)
+    readonly property int fixedHeight: Number(snapshot.fixedHeight || 0)
     readonly property var ipadProfiles: snapshot.ipadProfiles || []
     readonly property string ipadProfile: String(snapshot.ipadProfile || "")
     readonly property int recommendedBitrate: Number(snapshot.recommendedBitrate || 20)

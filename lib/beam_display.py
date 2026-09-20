@@ -49,6 +49,15 @@ def save(path, value):
             os.unlink(temporary)
 
 
+def quarantine(path):
+    """Set an unusable record aside instead of leaving Repair with no way out."""
+    target = path.with_name(path.name + ".invalid-" + time.strftime("%Y%m%d-%H%M%S"))
+    if target.exists():
+        target = path.with_name(target.name + "-" + uuid.uuid4().hex[:6])
+    path.replace(target)
+    return target
+
+
 def requested_size(environ):
     try:
         values = tuple(int(environ["SUNSHINE_CLIENT_" + key]) for key in ("WIDTH", "HEIGHT", "FPS"))
@@ -116,7 +125,7 @@ class DisplayFit:
             valid = valid and isinstance(session.get("source"), str) and mode_ok(session.get("sourceOriginal"))
         if not valid:
             raise DisplayError("The saved display-session.json is incomplete.",
-                               "Beam kept the file. Check its saved monitor settings before retrying Restore display.")
+                               "Repair sets this file aside so it can be replaced: " + str(self.state))
         return session
 
     def fixed_size(self):
@@ -182,6 +191,29 @@ class DisplayFit:
             save(self.preferences, preferences)
             self.error.unlink(missing_ok=True)
             return target
+
+    def clear_invalid(self):
+        """Repair must never be a dead end. An unreadable record is set aside.
+
+        Nothing else can replace these files, so a truncated write or an older
+        schema would otherwise fail every action Beam offers forever. The iPad
+        capture record holds no user choice, so it is rebuilt immediately and a
+        saved screen size survives.
+        """
+        moved = []
+        for path, check in ((self.state, self.load_session),
+                            (self.preferences, self.fixed_scale),
+                            (self.virtual.preferences, self.virtual.enabled)):
+            if not path.exists():
+                continue
+            try:
+                check()
+            except DisplayError:
+                moved.append(quarantine(path))
+                if path == self.virtual.preferences:
+                    from beam_virtual import OUTPUT
+                    save(path, dict(entry=str(self.beam.entry), output=OUTPUT))
+        return moved
 
     @contextlib.contextmanager
     def lock(self):
@@ -282,12 +314,14 @@ class DisplayFit:
                     if last and last[:2] != fixed[:2]:
                         detail = f"Last stream requested {last[0]}×{last[1]}; set {setting}."
             return dict(resolutionReady=configured, resolutionActive=active, recommendedRes=text,
+                        fixedWidth=fixed[0] if fixed else 0, fixedHeight=fixed[1] if fixed else 0,
                         resolutionDetail=error or session.get("error", detail), resolutionError=error,
                         resolutionPinned=bool(fixed), moonlightSetting=setting, nativeResolution=native,
                         ipadProfiles=profiles(), ipadProfile=load(self.preferences).get("ipadProfile", ""))
         except (DisplayError, KeyError, TypeError, AttributeError) as exc:
             detail = exc.message if isinstance(exc, DisplayError) else "The saved display session is invalid."
             status = dict(resolutionReady=False, resolutionActive=False, nativeResolution=False,
+                          fixedWidth=0, fixedHeight=0,
                           recommendedRes="Full · 60 fps", resolutionDetail=detail, resolutionError=detail,
                           resolutionPinned=False, moonlightSetting="Full", ipadProfiles=profiles(), ipadProfile="")
             # A damaged recovery record must not hide an independently valid
@@ -297,7 +331,8 @@ class DisplayFit:
                 fixed = self.fixed_size()
                 if fixed:
                     scale = self.fixed_scale()
-                    status.update(resolutionPinned=True, moonlightSetting=f"Custom {fixed[0]}×{fixed[1]}",
+                    status.update(resolutionPinned=True, fixedWidth=fixed[0], fixedHeight=fixed[1],
+                                  moonlightSetting=f"Custom {fixed[0]}×{fixed[1]}",
                                   recommendedRes=f"Fixed {fixed[0]}×{fixed[1]} · {scale * 100:.3g}% scale",
                                   ipadProfile=load(self.preferences).get("ipadProfile", ""))
             except DisplayError:

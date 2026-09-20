@@ -1,8 +1,11 @@
 """Backend regressions use synthetic files and commands, never host setup."""
+import contextlib
 import datetime as dt
 import base64
 import hashlib
 import importlib.util
+import io
+import json
 from pathlib import Path
 import tempfile
 import sys
@@ -59,6 +62,36 @@ class BackendTest(unittest.TestCase):
                 self.assertEqual(target.read_bytes(), png)
                 self.assertTrue(self.beam.qr(text)['ok'])
                 self.assertEqual(len(calls), count + 1)
+
+    def test_stale_cache_prune_cannot_fail_a_written_qr_code(self):
+        png = base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a4cUAAAAASUVORK5CYII=')
+        self.beam.cache.mkdir(parents=True)
+        # The panel generates two codes at once; either may prune the other's file.
+        (self.beam.cache / 'qr-vanished.png').symlink_to(self.beam.cache / 'gone.png')
+        self.system.have = lambda name: name == 'qrencode'
+        def generate(args):
+            Path(args[args.index('-o') + 1]).write_bytes(png)
+            return 0, ''
+        self.system.run = generate
+        done = self.beam.qr('192.0.2.21')
+        self.assertTrue(done['ok'], done)
+        self.assertEqual(Path(done['path']).read_bytes(), png)
+
+    def test_unexpected_action_failure_keeps_the_setup_terminal_open(self):
+        prompts, out, err = [], io.StringIO(), io.StringIO()
+        with patch.object(beam.Beam, 'execute', side_effect=KeyError('scale')), \
+             patch('sys.stdin') as stdin, \
+             patch('builtins.input', lambda text='': prompts.append(text)), \
+             contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            stdin.isatty.return_value = True
+            code = beam.main(['run-terminal', 'repair'])
+        self.assertEqual(code, 1)
+        # The terminal exists to show the failure, so it must wait to be read.
+        self.assertEqual(len(prompts), 1)
+        self.assertIn('KeyError', err.getvalue())
+        reported = json.loads(out.getvalue())
+        self.assertEqual(reported['action'], 'repair')
+        self.assertEqual(reported['retryAction'], 'repair')
 
     def test_one_firewall_rule_is_not_complete_setup(self):
         self.system.firewall_output += "47984/tcp ALLOW IN 10.0.0.0/8 # omarchy-sunshine\n"
