@@ -276,6 +276,24 @@ class Beam:
                 values.setdefault(key.strip(), val.strip())
         return values
 
+    def ensure_wlroots_capture(self):
+        """Keep headless Wayland hosts off Sunshine's portal capture path.
+
+        A headless Hyprland session does not expose the desktop portal's
+        RemoteDesktop interface. Sunshine otherwise falls back to that path
+        after package upgrades and can remain alive without opening its web or
+        Moonlight ports. Preserve an explicit user choice; add the safe
+        wlroots backend only when capture is not configured.
+        """
+        path = self.sun / "sunshine.conf"
+        text = read_text(path, 65536)
+        if any(line.partition("=")[0].strip() == "capture" for line in text.splitlines()):
+            return False
+        path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        suffix = "" if not text or text.endswith("\n") else "\n"
+        path.write_text(text + suffix + "capture = wlr\n")
+        return True
+
     def processes(self, name="sunshine"):
         rc, output = self.run(["pgrep", "-u", str(os.getuid()), "-x", name])
         rows = []
@@ -595,6 +613,7 @@ class Beam:
         self.display.stop()
         apps_changed = self.display.install()
         display_changed = self.display.virtual.install()
+        capture_changed = self.ensure_wlroots_capture()
         for unit, enabled in self.units():
             if enabled:
                 self.require(["systemctl", "--user", "disable", "--now", unit], "Could not disable Sunshine's duplicate startup.")
@@ -603,7 +622,7 @@ class Beam:
         if not self.firewall()["firewallReady"]:
             self.stock_function("open_ufw_ports", root=True)
         rows = self.processes()
-        if len(rows) > 1 or (rows and (apps_changed or display_changed or browser_changed or not rows[0].get("browser", False))):
+        if len(rows) > 1 or (rows and (apps_changed or display_changed or capture_changed or browser_changed or not rows[0].get("browser", False))):
             self.stop_processes(rows)
             rows = []
         if not rows:
