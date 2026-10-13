@@ -1,0 +1,5 @@
+__pycache__/
+*.pyc
+# Raw test evidence stays local. Public reports contain no network identifiers.
+docs/verification/*.json
+docs/verification/*.png

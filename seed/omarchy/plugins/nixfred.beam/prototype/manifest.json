@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "id": "nixfred.beam",
+  "name": "Beam",
+  "version": "1.0.0",
+  "author": "nixfred",
+  "license": "MIT",
+  "description": "Stream this Omarchy session to an iPad. A guided wizard walks a first-timer from nothing to a live picture, with QR codes so nothing has to be typed on the iPad, and an expert mode that asks for what it needs and does it. Beam neither knows nor cares whether it is running on a laptop, a desktop or a VM.",
+  "kinds": [
+    "service",
+    "bar-widget",
+    "panel"
+  ],
+  "entryPoints": {
+    "service": "Service.qml",
+    "barWidget": "BarWidget.qml",
+    "panel": "BeamPanel.qml"
+  },
+  "barWidget": {
+    "displayName": "Beam",
+    "description": "A dot that says whether an iPad can watch this desktop, and lights up while one is. Click for the setup wizard.",
+    "category": "Network",
+    "aliases": ["beam", "ipad", "stream", "sunshine", "moonlight", "remote", "desktop"],
+    "allowMultiple": false,
+    "defaultSection": "right",
+    "defaults": {
+      "refreshSec": 5,
+      "holdAwake": true,
+      "showLabel": true
+    },
+    "schema": [
+      {
+        "key": "refreshSec",
+        "type": "integer",
+        "label": "Refresh interval (seconds)",
+        "description": "How often Beam re-checks whether an iPad is watching. It polls twice as fast while a stream is live.",
+        "min": 2,
+        "max": 120,
+        "defaultValue": 5
+      },
+      {
+        "key": "holdAwake",
+        "type": "boolean",
+        "label": "Hold the session awake while streaming",
+        "description": "A locked or idle session streams a black screen, which is the single most common way this setup appears broken. On, Beam keeps the session awake for exactly as long as an iPad is connected and hands idling straight back afterwards.",
+        "defaultValue": true
+      },
+      {
+        "key": "showLabel",
+        "type": "boolean",
+        "label": "Show the state beside the dot",
+        "description": "A short word next to the dot. Off leaves just the dot.",
+        "defaultValue": true
+      }
+    ]
+  },
+  "repository": "https://github.com/nixfred/beam",
+  "homepage": "https://omarchy.nixfred.com"
+}
