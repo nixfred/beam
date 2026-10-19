@@ -2,6 +2,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import qs.Commons
+import qs.Commons as Commons
 import qs.Ui
 
 // A dot that answers one question without being asked: can an iPad watch this
@@ -28,12 +29,12 @@ BarWidget {
   }
   readonly property bool showLabel: String(setting("showLabel", true)) !== "false"
 
-  readonly property color foreground: bar ? bar.foreground : Color.foreground
+  readonly property color foreground: bar ? bar.foreground : Commons.Color.foreground
 
   readonly property color dotColor: {
-    if (warning) return Color.warning !== undefined ? Color.warning : "#e0a030"
+    if (warning) return Commons.Color.warning !== undefined ? Commons.Color.warning : "#e0a030"
     switch (state) {
-      case "live":  return Color.accent
+      case "live":  return Commons.Color.accent
       case "ready": return Util.alpha(foreground, 0.75)
       case "setup": return Util.alpha(foreground, 0.30)
       default:      return Util.alpha(foreground, 0.30)

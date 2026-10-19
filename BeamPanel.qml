@@ -4,6 +4,7 @@ import QtQuick
 import QtQuick.Layouts
 import Quickshell
 import qs.Commons
+import qs.Commons as Commons
 import qs.Ui as Ui
 
 Ui.Panel {
@@ -12,7 +13,7 @@ Ui.Panel {
     manageIpc: false
     required property var widget
     readonly property var svc: widget ? widget.svc : null
-    readonly property color foreground: Color.popups.text
+    readonly property color foreground: Commons.Color.popups.text
     readonly property color secondary: Util.alpha(foreground, 0.76)
     readonly property color hairline: Util.alpha(foreground, 0.15)
     readonly property string fontFamily: widget && widget.bar ? widget.bar.fontFamily : Style.font.family
@@ -211,9 +212,9 @@ Ui.Panel {
         implicitWidth: buttonText.implicitWidth + 26
         implicitHeight: Math.max(34, buttonText.implicitHeight + 16)
         radius: 6
-        color: prominent ? Util.alpha(Color.accent, 0.17) : mouse.containsMouse || activeFocus ? Util.alpha(panel.foreground, 0.08) : "transparent"
+        color: prominent ? Util.alpha(Commons.Color.accent, 0.17) : mouse.containsMouse || activeFocus ? Util.alpha(panel.foreground, 0.08) : "transparent"
         border.width: 1
-        border.color: activeFocus ? Color.accent : danger ? Util.alpha(Color.urgent, 0.65) : prominent ? Util.alpha(Color.accent, 0.55) : panel.hairline
+        border.color: activeFocus ? Commons.Color.accent : danger ? Util.alpha(Commons.Color.urgent, 0.65) : prominent ? Util.alpha(Commons.Color.accent, 0.55) : panel.hairline
         opacity: enabled ? 1 : 0.45
         activeFocusOnTab: enabled && visible
         Accessible.role: Accessible.Button
@@ -225,7 +226,7 @@ Ui.Panel {
             anchors.centerIn: parent
             text: control.text
             textFormat: Text.PlainText
-            color: control.danger ? Color.urgent : panel.foreground
+            color: control.danger ? Commons.Color.urgent : panel.foreground
             font.family: panel.fontFamily
             font.pixelSize: panel.smallSize
             font.bold: control.prominent
@@ -250,8 +251,8 @@ Ui.Panel {
         implicitHeight: inner.implicitHeight + 24
         radius: 8
         border.width: 1
-        border.color: accented ? Util.alpha(Color.accent, 0.4) : panel.hairline
-        color: accented ? Util.alpha(Color.accent, 0.05) : Util.alpha(panel.foreground, 0.025)
+        border.color: accented ? Util.alpha(Commons.Color.accent, 0.4) : panel.hairline
+        color: accented ? Util.alpha(Commons.Color.accent, 0.05) : Util.alpha(panel.foreground, 0.025)
         ColumnLayout {
             id: inner
             x: 12
@@ -278,7 +279,7 @@ Ui.Panel {
             implicitHeight: 5
             radius: 3
             border.width: 0
-            color: fact.attention ? Color.urgent : fact.good ? Color.accent : Util.alpha(panel.foreground, 0.3)
+            color: fact.attention ? Commons.Color.urgent : fact.good ? Commons.Color.accent : Util.alpha(panel.foreground, 0.3)
         }
         Caption {
             Layout.fillWidth: false
@@ -300,7 +301,7 @@ Ui.Panel {
             Layout.fillWidth: false
             Layout.preferredWidth: 18
             text: parent.done ? "✓" : "○"
-            color: parent.done ? Color.accent : panel.secondary
+            color: parent.done ? Commons.Color.accent : panel.secondary
         }
         Body {
             text: parent.text
@@ -321,7 +322,7 @@ Ui.Panel {
             implicitHeight: 22
             radius: 11
             border.width: 0
-            color: Util.alpha(Color.accent, 0.13)
+            color: Util.alpha(Commons.Color.accent, 0.13)
             Text {
                 anchors.centerIn: parent
                 text: parent.parent.number
@@ -370,7 +371,7 @@ Ui.Panel {
                         implicitHeight: 12
                         radius: 6
                         border.width: 0
-                        color: panel.svc && panel.svc.warning ? Color.urgent : panel.fresh ? Color.accent : panel.hairline
+                        color: panel.svc && panel.svc.warning ? Commons.Color.urgent : panel.fresh ? Commons.Color.accent : panel.hairline
                     }
                     Heading {
                         Layout.fillWidth: false
@@ -637,7 +638,7 @@ Ui.Panel {
                             Body {
                                 text: "Remove Sunshine?"
                                 font.bold: true
-                                color: Color.urgent
+                                color: Commons.Color.urgent
                             }
                             Caption {
                                 text: "Stops streaming, removes Sunshine, its login and pairings, and Beam's startup, web app and firewall changes. Paired iPads must pair again."
@@ -674,9 +675,9 @@ Ui.Panel {
                     Layout.fillWidth: true
                     implicitHeight: Math.max(issueText.implicitHeight, restoreStranded.visible ? restoreStranded.implicitHeight : 0) + 18
                     radius: 6
-                    color: Util.alpha(issueBox.warned ? Color.urgent : panel.foreground, 0.07)
+                    color: Util.alpha(issueBox.warned ? Commons.Color.urgent : panel.foreground, 0.07)
                     border.width: 1
-                    border.color: Util.alpha(issueBox.warned ? Color.urgent : panel.foreground, 0.3)
+                    border.color: Util.alpha(issueBox.warned ? Commons.Color.urgent : panel.foreground, 0.3)
                     RowLayout {
                         x: 10
                         y: 9

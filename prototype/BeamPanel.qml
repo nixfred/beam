@@ -4,6 +4,7 @@ import QtQuick.Layouts
 import Quickshell
 import Quickshell.Io
 import qs.Commons
+import qs.Commons as Commons
 import qs.Ui
 
 // Two ways through the same job.
@@ -26,11 +27,11 @@ Panel {
   required property var widget
   readonly property var svc: widget.svc
 
-  readonly property color foreground: widget.bar ? widget.bar.foreground : Color.foreground
+  readonly property color foreground: widget.bar ? widget.bar.foreground : Commons.Color.foreground
   readonly property color dim: Qt.darker(foreground, 1.5)
   readonly property color faint: Util.alpha(foreground, 0.10)
   readonly property string fontFamily: widget.bar ? widget.bar.fontFamily : Style.font.family
-  readonly property color good: Color.accent
+  readonly property color good: Commons.Color.accent
 
   readonly property int panelWidth: Style.space(1120)
 

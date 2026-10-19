@@ -3,6 +3,7 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
 import qs.Commons
+import qs.Commons as Commons
 import qs.Ui as Ui
 
 Ui.BarWidget {
@@ -12,8 +13,8 @@ Ui.BarWidget {
     readonly property var svc: bar && bar.shell ? bar.shell.serviceFor(moduleName) : null
     readonly property bool streaming: !!(svc && svc.streaming && svc.statusFresh)
     readonly property string state: svc ? svc.state : "checking"
-    readonly property color foreground: bar ? bar.foreground : Color.foreground
-    readonly property color dotColor: svc && svc.warning ? Color.urgent : streaming ? Color.accent : state === "ready" ? foreground : Util.alpha(foreground, 0.4)
+    readonly property color foreground: bar ? bar.foreground : Commons.Color.foreground
+    readonly property color dotColor: svc && svc.warning ? Commons.Color.urgent : streaming ? Commons.Color.accent : state === "ready" ? foreground : Util.alpha(foreground, 0.4)
     readonly property bool showLabel: String(setting("showLabel", true)) !== "false"
     readonly property string stateLabel: svc && svc.warning ? "check" : streaming ? "live" : state === "ready" ? "iPad" : state === "checking" ? "…" : "set up"
     readonly property bool opened: panel.opened
